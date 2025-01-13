@@ -5,29 +5,40 @@ import assert from 'node:assert'
 
 import { db } from './db'
 import { IFamily, IFamilyPutRemove } from './relations'
-import { uniqueFactory } from './utils/unique'
 
-const assertUnique = uniqueFactory<string>()
+const categories = new Map<string, Category<any, any>>()
 
 export type Event<Key, Value> = { key: Key } & { last: undefined | Value; next: undefined | Value }
+
+type Opts = Partial<{ index: boolean }>
 
 export class Category<Key, Value> implements IFamily<Key, Value, Promise<void>> {
 	protected sublevel: Level<Key, Value>
 	protected subscriptions = new Set<(event: Event<Key, Value>) => void>()
 	constructor(
 		protected prefix: string,
-		private defaultValue?: (key: Key) => Value,
+		protected opts?: Opts,
 	) {
-		assertUnique(prefix)
+		assert(!categories.has(prefix), `category ${prefix} already exists`)
+		categories.set(prefix, this)
 		//  the package do not provide types for sublevel
 		this.sublevel = db.sublevel<Key, Value>(prefix, { valueEncoding: 'json' }) as any
 	}
-	async dump() {
-		console.log(this.prefix)
-		for await (const entry of this.sublevel.iterator()) console.log(entry)
+	static async dump() {
+		for (const [prefix, category] of categories.entries()) {
+			console.log(prefix)
+			for await (const entry of category.sublevel.iterator()) console.log(entry)
+		}
+	}
+	static async export(write: (prefix: string) => (key: unknown, value: unknown) => Promise<void>) {
+		for (const [prefix, category] of Object.entries(categories)) {
+			if (category.opts.index) continue
+			const w = write(prefix)
+			for await (const [key, value] of category.sublevel.iterator()) await w(key, value)
+		}
 	}
 	async get(key: Key): Promise<undefined | Value> {
-		return (await this.sublevel.get(key)) ?? this.defaultValue?.(key)
+		return await this.sublevel.get(key)
 	}
 	list(
 		opts?: Partial<{
@@ -54,6 +65,7 @@ export class Category<Key, Value> implements IFamily<Key, Value, Promise<void>> 
 				next,
 			}),
 		)
+		return next
 	}
 	async remove(key: Key) {
 		const last = await this.get(key)
@@ -74,7 +86,7 @@ export class Category<Key, Value> implements IFamily<Key, Value, Promise<void>> 
 		const last = await this.get(key)
 		let next: undefined | Value
 		if (isFunction(up)) {
-			const from = last ?? this.defaultValue?.(key)
+			const from = last
 			assert(from !== undefined, `key ${key} has no default value for category ${this.prefix}`)
 			next = up(from)
 		} else if (up !== undefined) {
@@ -82,7 +94,7 @@ export class Category<Key, Value> implements IFamily<Key, Value, Promise<void>> 
 		}
 		if (next === undefined) {
 			await this.remove(key)
-			return
+			return undefined
 		}
 		await this.sublevel.put(key, next)
 		this.subscriptions.forEach((cb) =>
@@ -92,15 +104,23 @@ export class Category<Key, Value> implements IFamily<Key, Value, Promise<void>> 
 				next,
 			}),
 		)
+		return next
 	}
 }
 
-export class CategoryWithPut<Key, Value>
+export class CategoryWithDefault<Key, Value>
 	extends Category<Key, Value>
 	implements IFamilyPutRemove<Key, Value, Promise<void>>
 {
-	constructor(prefix: string) {
-		super(prefix)
+	constructor(
+		prefix: string,
+		private defaultValue: (key: Key) => Value,
+		opts?: Opts,
+	) {
+		super(prefix, opts)
+	}
+	async get(key: Key): Promise<Value> {
+		return (await this.sublevel.get(key)) ?? this.defaultValue(key)
 	}
 	async put(key: Key, next: Value) {
 		const last = await this.get(key)
@@ -112,6 +132,28 @@ export class CategoryWithPut<Key, Value>
 				next,
 			}),
 		)
+		return next
+	}
+}
+
+export class CategoryWithPut<Key, Value>
+	extends Category<Key, Value>
+	implements IFamilyPutRemove<Key, Value, Promise<void>>
+{
+	constructor(prefix: string, opts?: Opts) {
+		super(prefix, opts)
+	}
+	async put(key: Key, next: Value) {
+		const last = await this.get(key)
+		await this.sublevel.put(key, next)
+		this.subscriptions.forEach((cb) =>
+			cb({
+				key,
+				last,
+				next,
+			}),
+		)
+		return next
 	}
 }
 
@@ -119,8 +161,9 @@ export class CategoryWithCreate<Key, Value, Init> extends Category<Key, Value> {
 	constructor(
 		prefix: string,
 		private creator: (init: Init) => [Key, Value],
+		opts?: Opts,
 	) {
-		super(prefix)
+		super(prefix, opts)
 	}
 	async create(init: Init) {
 		const [key, next] = this.creator(init)

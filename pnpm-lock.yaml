@@ -29,6 +29,9 @@ importers:
       xdg-basedir:
         specifier: ^5.1.0
         version: 5.1.0
+      yaml:
+        specifier: ^2.7.0
+        version: 2.7.0
       zod:
         specifier: ^3.24.1
         version: 3.24.1

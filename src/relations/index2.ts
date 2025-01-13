@@ -3,7 +3,7 @@ import { focus, Focus, isUndefined, PRISM, REMOVE } from '@constellar/core'
 
 import { Category } from '../category'
 import { insertValue, removeValue, symmetricDiff } from '../utils/arrays'
-import { fromInit, Init } from '../utils/from-init'
+import { fromInit, Init } from '../utils/fromInit'
 
 export type UpdateEvent<Key, Value> = {
 	key: Key

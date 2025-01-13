@@ -1,29 +1,20 @@
-import { focus, pipe, prop, valueOr } from '@constellar/core'
+import { focus, id, pipe, prop, valueOr } from '@constellar/core'
 
-import { CategoryWithCreate } from '../category'
-import { createUUID } from '../utils/uuid'
+import { CategoryWithDefault } from '../category'
+import { manyToMany } from '../relations'
 
-type Pretty<T> = { [K in keyof T]: T[K] }
-
-export type IResource = Pretty<
-	Partial<Payload> & {
-		checksum: string
-		filePath: string
-		mtime: number
-	}
->
-
-export const Resources = new CategoryWithCreate<
-	string,
-	IResource,
-	{
-		checksum: string
-		filePath: string
-		mtime: number
-	}
->('Resources', (init) => [createUUID(), init])
-
-interface Payload {
+export type IResource = Partial<{
 	tags: string[]
-}
+}>
+
+export const Resources = new CategoryWithDefault<string, IResource>('Resources', () => ({}))
+
 export const fTags = focus<IResource>()(pipe(prop('tags'), valueOr<string[]>([])))
+
+export const TagToResources = new CategoryWithDefault<string, string[]>(
+	'TagToResources',
+	() => [],
+	{ index: true },
+)
+
+export const tagToResources = manyToMany(Resources, fTags.view.bind(fTags), TagToResources, id)

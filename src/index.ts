@@ -1,40 +1,43 @@
-import { curry1, id, insertValue, removeValue } from '@constellar/core'
+import { id } from '@constellar/core'
 import { program } from 'commander'
 
-import { ChecksumToResource } from './categories/ChecksumToResource'
-import { PathToResource } from './categories/PathToResource'
-import { fTags, Resources } from './categories/Resource'
-import { TagsToResources } from './categories/TagsToResources'
+import { Category } from './category'
+import { getConfig } from './config'
 import { reset } from './db'
-import { getFile, modFile } from './files/scan'
+import { getFile } from './files/scan'
+import { addTag, delTag, getTags, listTags } from './files/tags'
+
+program.command('dump').action(async () => {
+	await Category.dump()
+})
 
 program.command('scan <filename>').action(async (filename) => {
 	console.log(await getFile(filename, id))
 })
 
-const add = curry1(insertValue)
-const del = curry1(removeValue)
-
-program.command('dump').action(async () => {
-	await Resources.dump()
-	await ChecksumToResource.dump()
-	await PathToResource.dump()
-	await TagsToResources.dump()
+program.command('config').action(async () => {
+	console.log(await getConfig())
 })
 
 program.command('addTag <tag> <filename>').action(async (tag, filename) => {
-	console.log(await modFile(filename, fTags.update(add(tag))))
+	console.log(await addTag(tag, filename))
 })
 
 program.command('delTag <tag> <filename>').action(async (tag, filename) => {
-	console.log(await modFile(filename, fTags.update(del(tag))))
+	console.log(await delTag(tag, filename))
 })
 
 program.command('getTags <filename>').action(async (filename) => {
-	console.log(await getFile(filename, fTags.view.bind(fTags)))
+	console.log(await getTags(filename))
 })
 
-program.command('listTags').action(async () => {})
+program.command('getFiles <tag>').action(async () => {
+	console.log(await listTags())
+})
+
+program.command('listTags').action(async () => {
+	console.log(await listTags())
+})
 
 program.command('reset').action(async () => {
 	await reset()
