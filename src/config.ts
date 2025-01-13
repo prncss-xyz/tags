@@ -6,6 +6,7 @@ import { parse } from 'yaml'
 import { z } from 'zod'
 
 import { appName } from './appName'
+import { log } from './log'
 
 const home = process.env.HOME
 
@@ -27,7 +28,7 @@ async function getConfig_() {
 	try {
 		raw = await readFile(filePath, 'utf8')
 	} catch (_e) {
-		console.log(`config not found at ${filePath}`)
+		log.log(`config not found at ${filePath}`)
 		process.exit(1)
 	}
 	return ConfigSchema.parse(parse(raw))

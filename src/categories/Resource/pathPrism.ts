@@ -16,7 +16,7 @@ export function getPathPrism(dirs: Record<string, string>) {
 	function getter(rawPath: string) {
 		for (const [dir, head] of Object.entries(dirs)) {
 			if (rawPath.startsWith(head)) {
-				const tail = rawPath.slice(dir.length + 2).split(pathSep)
+				const tail = rawPath.slice(head.length + 1).split(pathSep)
 				return [dir, ...tail].map(encodeURI).join(keySep)
 			}
 		}

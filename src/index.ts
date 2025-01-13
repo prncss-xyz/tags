@@ -5,38 +5,41 @@ import { Category } from './category'
 import { getConfig } from './config'
 import { reset } from './db'
 import { getFile } from './files/scan'
-import { addTag, delTag, getTags, listTags } from './files/tags'
+import { addTag, delTag, getTags, listResourcesByTag, listTags } from './files/tags'
+import { log } from './log'
+
+// TODO: tag-rm tag-mv export import
 
 program.command('dump').action(async () => {
-	await Category.dump()
+	log.log(await Category.dump())
 })
 
 program.command('scan <filename>').action(async (filename) => {
-	console.log(await getFile(filename, id))
+	await getFile(filename, id)
 })
 
 program.command('config').action(async () => {
-	console.log(await getConfig())
+	log.log(await getConfig())
 })
 
-program.command('addTag <tag> <filename>').action(async (tag, filename) => {
-	console.log(await addTag(tag, filename))
+program.command('tag-add <tag> <filename>').action(async (tag, filename) => {
+	await addTag(tag, filename)
 })
 
-program.command('delTag <tag> <filename>').action(async (tag, filename) => {
-	console.log(await delTag(tag, filename))
+program.command('tag-rm <tag> <filename>').action(async (tag, filename) => {
+	await delTag(tag, filename)
 })
 
-program.command('getTags <filename>').action(async (filename) => {
-	console.log(await getTags(filename))
+program.command('tag-get <filename>').action(async (filename) => {
+	await getTags(filename)
 })
 
-program.command('getFiles <tag>').action(async () => {
-	console.log(await listTags())
+program.command('file-ls <tag>').action(async (tag) => {
+	await listResourcesByTag(tag)
 })
 
-program.command('listTags').action(async () => {
-	console.log(await listTags())
+program.command('tag-ls').action(async () => {
+	await listTags()
 })
 
 program.command('reset').action(async () => {

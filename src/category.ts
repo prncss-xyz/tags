@@ -4,6 +4,7 @@ import { Level } from 'level'
 import assert from 'node:assert'
 
 import { db } from './db'
+import { log } from './log'
 import { IFamily, IFamilyPutRemove } from './relations'
 
 const categories = new Map<string, Category<any, any>>()
@@ -26,8 +27,8 @@ export class Category<Key, Value> implements IFamily<Key, Value, Promise<void>> 
 	}
 	static async dump() {
 		for (const [prefix, category] of categories.entries()) {
-			console.log(prefix)
-			for await (const entry of category.sublevel.iterator()) console.log(entry)
+			log.log(prefix)
+			for await (const entry of category.sublevel.iterator()) log.log(entry)
 		}
 	}
 	static async export(write: (prefix: string) => (key: unknown, value: unknown) => Promise<void>) {

@@ -43,7 +43,6 @@ export default tseslint.config({
         varsIgnorePattern: "^_",
       },
     ],
-    "no-console": "off",
     "no-constant-condition": "off",
     "no-else-return": "warn",
     "no-empty": "warn",
