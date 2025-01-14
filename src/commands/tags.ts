@@ -5,7 +5,7 @@ import { getPathPrism } from '../categories/Resource/pathPrism'
 import { NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
 import { log } from '../log'
-import { insertValue, removeValues } from '../utils/arrays'
+import { dedupeSorted, insertValue, removeValues } from '../utils/arrays'
 import { scanFile } from './scan'
 
 async function nameToTagsOrCreate(name: string) {
@@ -15,14 +15,16 @@ async function nameToTagsOrCreate(name: string) {
 	return await Tags.create(name)
 }
 
-export async function addTag(name: string, filePath: string) {
-	const resourceKey = await scanFile(filePath)
-	if (!resourceKey) {
-		log.error('file not found:', filePath)
-		return
+export async function addTag(name: string, filePaths: string[]) {
+	for (const filePath of filePaths) {
+		const resourceKey = await scanFile(filePath)
+		if (!resourceKey) {
+			log.error('file not found:', filePath)
+			return
+		}
+		const tagKey = await nameToTagsOrCreate(name)
+		await Resources.update(resourceKey, fTags.update(insertValue(tagKey)))
 	}
-	const tagKey = await nameToTagsOrCreate(name)
-	await Resources.update(resourceKey, fTags.update(insertValue(tagKey)))
 }
 
 export async function getTags(filePath: string) {
@@ -38,8 +40,7 @@ export async function getTags(filePath: string) {
 		tagKeys.map((tagKey) => Tags.get(tagKey).then((tag) => tag!.name)),
 	)
 	names.sort()
-	// TOTO: dedupe
-	log.log(names.join('\n'))
+	log.log(dedupeSorted(names).join('\n'))
 }
 
 export async function listResourcesByTag(tagName: string) {
@@ -60,8 +61,7 @@ export async function listResourcesByTag(tagName: string) {
 		)
 	).flat()
 	filePaths.sort()
-	// TOTO: dedupe
-	log.log(filePaths.join('\n'))
+	log.log(dedupeSorted(filePaths.join('\n')))
 }
 
 export async function listTags() {
@@ -70,17 +70,18 @@ export async function listTags() {
 		names.push(name)
 	}
 	names.sort()
-	// TOTO: dedupe
-	log.log(names.join('\n'))
+	log.log(dedupeSorted(names.join('\n')))
 }
 
-export async function delTag(name: string, filePath: string) {
-	const resourceKey = await scanFile(filePath)
-	if (!resourceKey) {
-		log.error('file not found:', filePath)
-		return
+export async function delTag(name: string, filePaths: string[]) {
+	for (const filePath of filePaths) {
+		const resourceKey = await scanFile(filePath)
+		if (!resourceKey) {
+			log.error('file not found:', filePath)
+			return
+		}
+		const tagKeys = await NameToTags.get(name)
+		if (!tagKeys) return
+		await Resources.update(resourceKey, fTags.update(removeValues(tagKeys)))
 	}
-	const tagKeys = await NameToTags.get(name)
-	if (!tagKeys) return
-	await Resources.update(resourceKey, fTags.update(removeValues(tagKeys)))
 }

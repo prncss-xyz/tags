@@ -9,7 +9,7 @@ import { getConfig } from './config'
 import { reset } from './db'
 import { log } from './log'
 
-// TODO: tag-rm tag-mv export import
+// TODO: tag-rm tag-mv scan
 
 program.command('dump').action(async () => {
 	log.log(await Category.dump())
@@ -23,12 +23,12 @@ program.command('config').action(async () => {
 	log.log(await getConfig())
 })
 
-program.command('tag-add <tag> <filename>').action(async (tag, filename) => {
-	await addTag(tag, filename)
+program.command('tag-add <tag> <filename...>').action(async (tag, filenames) => {
+	await addTag(tag, filenames)
 })
 
-program.command('tag-rm <tag> <filename>').action(async (tag, filename) => {
-	await delTag(tag, filename)
+program.command('tag-rm <tag> <filename...>').action(async (tag, filenames) => {
+	await delTag(tag, filenames)
 })
 
 program.command('tag-get <filename>').action(async (filename) => {

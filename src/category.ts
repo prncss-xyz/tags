@@ -1,17 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { COptic, Focus, id, isFunction } from '@constellar/core'
+import { COptic, Focus, id, isFunction, PRISM } from '@constellar/core'
 import { Level } from 'level'
 import assert from 'node:assert'
 
 import { db } from './db'
 import { log } from './log'
-import { IFamily, IFamilyPutRemove, manyToMany, oneToMany } from './relations'
+import { IFamily, IFamilyPutRemove, manyToMany, NonRemove, oneToMany, oneToOne } from './relations'
 import { Init } from './utils/fromInit'
 
 export const categories = new Map<string, Category<any, any>>()
 
 function getDefault<T>(): T[] {
 	return []
+}
+function isDefault<T>(value: T[]): unknown {
+	return value.length === 0
 }
 
 export type Event<Key, Value> = { key: Key } & { last: undefined | Value; next: undefined | Value }
@@ -70,15 +73,24 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 		prefix: string,
 		optic: COptic<TKey[], Value, Fail, Command, IS_PRISM>,
 	) {
-		const getTargetIds = optic.view.bind(optic)
-		return new ManyToMany(prefix, this, getTargetIds, getDefault<Key>, id)
+		return new ManyToMany(prefix, this, optic.view.bind(optic), getDefault<Key>, isDefault, id)
 	}
 	oneToMany<TKey, Fail, Command, IS_PRISM>(
 		prefix: string,
 		optic: COptic<TKey, Value, Fail, Command, IS_PRISM>,
 	) {
-		const getTargetId = optic.view.bind(optic)
-		return new OneToMany(prefix, this, getTargetId, getDefault<Key>, id)
+		return new OneToMany(prefix, this, optic.view.bind(optic), getDefault<Key>, isDefault, id)
+	}
+	oneToOne<TKey, Fail, Command, IS_PRISM>(
+		prefix: string,
+		optic: COptic<TKey, Value, Fail, Command, IS_PRISM>,
+	) {
+		return new OneToOne(
+			prefix,
+			this,
+			optic.view.bind(optic),
+			id<COptic<Key, Key, never, never, PRISM>>,
+		)
 	}
 	async put(key: Key, next: Value) {
 		const last = await this.get(key)
@@ -121,14 +133,7 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 			await this.remove(key)
 			return undefined
 		}
-		await this.sublevel.put(key, next)
-		this.subscriptions.forEach((cb) =>
-			cb({
-				key,
-				last,
-				next,
-			}),
-		)
+		await this.put(key, next)
 		return next
 	}
 }
@@ -140,6 +145,7 @@ export class CategoryWithDefault<Key, Value>
 	constructor(
 		prefix: string,
 		private defaultValue: (key: Key) => Value,
+		private isDefault: (value: Value) => unknown,
 		opts?: Opts,
 	) {
 		super(prefix, opts)
@@ -149,7 +155,8 @@ export class CategoryWithDefault<Key, Value>
 	}
 	async put(key: Key, next: Value) {
 		const last = await this.get(key)
-		await this.sublevel.put(key, next)
+		if (this.isDefault(next)) await this.sublevel.del(key)
+		else await this.sublevel.put(key, next)
 		this.subscriptions.forEach((cb) =>
 			cb({
 				key,
@@ -224,11 +231,11 @@ export class OneToMany<
 		source: IFamily<SKey, SValue>,
 		getTargetId: Init<TKey | undefined, [SValue]>,
 		getDefault: () => TValue,
+		isDefault: (value: TValue) => unknown,
 		o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
 	) {
-		super(prefix, getDefault, { index: true })
-		const back = oneToMany(source, getTargetId, this, o)
-		this.back = back
+		super(prefix, getDefault, isDefault, { index: true })
+		this.back = oneToMany(source, getTargetId, this, o)
 	}
 }
 
@@ -247,10 +254,23 @@ export class ManyToMany<
 		source: IFamily<SKey, SValue>,
 		getTargetIds: Init<TKey[], [SValue]>,
 		getDefault: () => TValue,
+		isDefault: (value: TValue) => unknown,
 		o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
 	) {
-		super(prefix, getDefault, { index: true })
-		const back = manyToMany(source, getTargetIds, this, o)
-		this.back = back
+		super(prefix, getDefault, isDefault, { index: true })
+		this.back = manyToMany(source, getTargetIds, this, o)
+	}
+}
+
+export class OneToOne<SValue, TValue, SKey, TKey, Fail, Command> extends Category<TKey, TValue> {
+	back: (t: TValue) => Fail | SKey
+	constructor(
+		prefix: string,
+		source: IFamily<SKey, SValue>,
+		getTargetId: Init<TKey | undefined, [SValue]>,
+		o: Focus<SKey, TValue, Fail, NonRemove<Command>, PRISM>,
+	) {
+		super(prefix, { index: true })
+		this.back = oneToOne(source, getTargetId, this, o)
 	}
 }

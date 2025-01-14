@@ -21,7 +21,7 @@ export interface IFamilyPutRemove<Key, Value> extends IFamily<Key, Value> {
 	remove: (key: Key) => Promise<void>
 }
 
-type NonRemove<T> = T extends typeof REMOVE ? never : T
+export type NonRemove<T> = T extends typeof REMOVE ? never : T
 
 export function oneToOne<SValue, TValue, SKey, TKey, Fail, Command>(
 	source: IFamily<SKey, SValue>,

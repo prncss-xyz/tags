@@ -23,6 +23,7 @@ export const fNumber = focus<FamilyToValue<typeof ChecksumToResources>>()(
 		return undefined
 	}),
 )
+
 export const NumberToChecksumToResources = ChecksumToResources.oneToMany(
 	'NumberToChecksumToResources',
 	fNumber,
