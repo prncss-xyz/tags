@@ -1,4 +1,4 @@
-import { pipe } from '@constellar/core'
+import { flow } from '@constellar/core'
 import { stat } from 'node:fs/promises'
 import { resolve } from 'node:path/posix'
 
@@ -12,10 +12,17 @@ import {
 import { getPathPrism } from '../categories/Resource/pathPrism'
 import { getConfig } from '../config'
 import { logger } from '../logger'
-import { isoAssert } from '../utils/isoAssert'
 import { calculateChecksum } from './checksum'
 
-export async function scanFile(filePath: string) {
+function asyncPipe<A, B, C>(f: (a: A) => Promise<B>, g: (b: B) => Promise<C>) {
+	return async (a: A) => await g(await f(a))
+}
+
+async function asyncIdentity<A>(a: A) {
+	return a
+}
+
+export async function scanFile(filePath: string, mod = asyncIdentity<IResource | undefined>) {
 	filePath = resolve(filePath)
 	const config = await getConfig()
 	const pathPrism = getPathPrism(config.dirs)
@@ -24,51 +31,31 @@ export async function scanFile(filePath: string) {
 		logger.log(`file ${filePath} is not in a managed directory`)
 		return undefined
 	}
-	let mtime: number
-	try {
-		mtime = await stat(filePath).then((stat) => stat.mtimeMs)
-	} catch (_e) {
-		return undefined
-	}
-	const resource = await Resources.get(resourceKey)
-	if (resource === undefined) {
-		const checksum = await calculateChecksum(filePath)
-		const lastResourceKeys = await ChecksumToResources.get(checksum)
-		let lastResource: IResource | undefined = undefined
-		for (const key of lastResourceKeys ?? []) {
-			lastResource = await Resources.get(key)
-			if (lastResource !== undefined) break
-		}
-		Resources.put(resourceKey, lastResource ?? { checksum, mtime })
-		return resourceKey
-	}
-	// we don't do simple equality to allow for the case where many machines share the same db and have different clocks
-	if (resource.mtime >= mtime) {
-		return resourceKey
-	}
-	await Resources.update(
+	return await Resources.modify(
 		resourceKey,
-		pipe(fMtime.update(mtime), fChecksum.update(await calculateChecksum(filePath))),
+		asyncPipe(async (last) => {
+			let mtime: number
+			try {
+				mtime = await stat(filePath).then((stat) => stat.mtimeMs)
+			} catch (_e) {
+				await Resources.remove(resourceKey)
+				return undefined
+			}
+			if (last === undefined) {
+				const checksum = await calculateChecksum(filePath)
+				const lastResourceKeys = await ChecksumToResources.get(checksum)
+				let lastResource: IResource | undefined = undefined
+				for (const key of lastResourceKeys ?? []) {
+					lastResource = await Resources.get(key)
+					if (lastResource !== undefined) break
+				}
+				return lastResource ?? { checksum, mtime }
+			}
+			// we don't do simple equality to allow for the case where many machines share the same db and have different clocks
+			if (last.mtime >= mtime) {
+				return last
+			}
+			return flow(last, fMtime.update(mtime), fChecksum.update(await calculateChecksum(filePath)))
+		}, mod),
 	)
-	return resourceKey
-}
-
-export async function modFile(filePath: string, mode: (r: IResource) => IResource) {
-	const key = await scanFile(filePath)
-	if (key === undefined) {
-		logger.error('file not found', filePath)
-		return
-	}
-	return Resources.update(key, mode)
-}
-
-export async function getFile<T>(filePath: string, select: (r: IResource) => T) {
-	const key = await scanFile(filePath)
-	if (key === undefined) {
-		logger.error('file not found', filePath)
-		return
-	}
-	const resource = await Resources.get(key)
-	isoAssert(resource !== undefined)
-	return select(resource)
 }

@@ -1,18 +1,13 @@
-import { fTags, Resources, TagToResources } from '../categories/Resource'
+import { fTags, TagToResources } from '../categories/Resource'
 import { getPathPrism } from '../categories/Resource/pathPrism'
 import { NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
 import { logger } from '../logger'
 import { dedupeSorted, insertValue, removeValues } from '../utils/arrays'
-import { isoAssert } from '../utils/isoAssert'
 import { scanFile } from './scan'
 import { walkDirOrFiles, walkList } from './walkDir'
 
-function delay(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-async function nameToTagsOrCreate(name: string) {
+async function nameToTagOrCreate(name: string) {
 	const tagKeys = await NameToTags.get(name)
 	const head = tagKeys[0]
 	if (head !== undefined) return head
@@ -20,43 +15,52 @@ async function nameToTagsOrCreate(name: string) {
 }
 
 export async function tagAddList(name: string, filePaths: string[]) {
+	const tagKey = await nameToTagOrCreate(name)
 	for (const filePath of filePaths) {
 		await walkList(filePath, async (filePath) => {
-			const resourceKey = await scanFile(filePath)
-			if (!resourceKey) {
-				logger.error('file not found:', filePath)
-				return
-			}
-			const tagKey = await nameToTagsOrCreate(name)
-			// FIXME: transaction or cache
-			await delay(10)
-			await Resources.update(resourceKey, fTags.update(insertValue(tagKey)))
+			scanFile(filePath, async (last) => {
+				if (last === undefined) {
+					logger.error('file not found:', filePath)
+					return undefined
+				}
+				return fTags.modify(insertValue(tagKey), last)
+			})
 		})
 	}
 }
 
-export async function tagAdd(name: string, filePaths: string[]) {
+export async function tagDel(name: string, filePaths: string[]) {
+	const tagKeys = await NameToTags.get(name)
 	await walkDirOrFiles(filePaths, async (filePath) => {
-		const resourceKey = await scanFile(filePath)
-		if (!resourceKey) {
-			logger.error('file not found:', filePath)
-			return
-		}
-		const tagKey = await nameToTagsOrCreate(name)
-		// FIXME: transaction or cache
-		await delay(10)
-		await Resources.update(resourceKey, fTags.update(insertValue(tagKey)))
+		scanFile(filePath, async (last) => {
+			if (last === undefined) {
+				logger.error('file not found:', filePath)
+				return undefined
+			}
+			return fTags.modify(removeValues(tagKeys), last)
+		})
+	})
+}
+
+export async function tagAdd(name: string, filePaths: string[]) {
+	const tagKey = await nameToTagOrCreate(name)
+	await walkDirOrFiles(filePaths, async (filePath) => {
+		scanFile(filePath, async (last) => {
+			if (last === undefined) {
+				logger.error('file not found:', filePath)
+				return undefined
+			}
+			return fTags.modify(insertValue(tagKey), last)
+		})
 	})
 }
 
 export async function tagGet(filePath: string) {
-	const resourceKey = await scanFile(filePath)
-	if (!resourceKey) {
+	const resource = await scanFile(filePath)
+	if (!resource) {
 		logger.error('file not found:', filePath)
-		return
+		return undefined
 	}
-	const resource = await Resources.get(resourceKey)
-	isoAssert(resource !== undefined)
 	const tagKeys = fTags.view(resource)
 	const names = await Promise.all(
 		tagKeys.map((tagKey) => Tags.get(tagKey).then((tag) => tag!.name)),
@@ -93,17 +97,4 @@ export async function listAllTags() {
 	}
 	names.sort()
 	logger.log(dedupeSorted(names.join('\n')))
-}
-
-export async function tagDel(name: string, filePaths: string[]) {
-	await walkDirOrFiles(filePaths, async (filePath) => {
-		const resourceKey = await scanFile(filePath)
-		if (!resourceKey) {
-			logger.error('file not found:', filePath)
-			return
-		}
-		const tagKeys = await NameToTags.get(name)
-		if (!tagKeys) return
-		await Resources.update(resourceKey, fTags.update(removeValues(tagKeys)))
-	})
 }

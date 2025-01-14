@@ -1,6 +1,8 @@
+import { Dirent } from 'node:fs'
 import { lstat, readdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
+import { cmpPath } from '../categories/Resource/pathPrism'
 import { logger } from '../logger'
 
 export async function walkDirOrFiles(pathNames: string[], cb: (file: string) => Promise<void>) {
@@ -37,8 +39,13 @@ export async function walkList(pathName: string, cb: (file: string) => Promise<v
 	}
 }
 
+function cmp(a: Dirent, b: Dirent) {
+	return cmpPath(a.name, b.name)
+}
+
 export async function walkDir(dir: string, cb: (file: string) => Promise<void>) {
 	const entries = await readdir(dir, { withFileTypes: true })
+	entries.sort(cmp)
 	for (const entry of entries) {
 		if (entry.name.startsWith('.')) continue
 		if (entry.isDirectory()) {

@@ -12,12 +12,12 @@ export type UpdateEvent<Key, Value> = {
 }
 
 export interface IFamily<Key, Value> {
+	map: (key: Key, modify: (t: Value) => Value) => Promise<void>
 	subscribe: (callback: (event: UpdateEvent<Key, Value>) => void) => void
-	update: (key: Key, modify: (t: Value) => Value) => Promise<undefined | Value>
 }
 
 export interface IFamilyPutRemove<Key, Value> extends IFamily<Key, Value> {
-	put: (key: Key, value: Value) => Promise<undefined | Value>
+	put: (key: Key, value: Value) => Promise<void>
 	remove: (key: Key) => Promise<void>
 }
 
@@ -52,14 +52,14 @@ export function oneToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command>(
 		const parentIn = getTargetIdResolved(next)
 		if (parentIn === parentOut) return
 		if (parentOut !== undefined) {
-			if (resolved.isCommand(REMOVE)) target.update(parentOut, resolved.update(REMOVE))
+			if (resolved.isCommand(REMOVE)) target.map(parentOut, resolved.update(REMOVE))
 			else {
 				isoAssert('remove' in target)
 				target.remove(parentOut)
 			}
 		}
 		if (parentIn !== undefined) {
-			if (resolved.isCommand(REMOVE)) target.update(parentIn, resolved.update(key))
+			if (resolved.isCommand(REMOVE)) target.map(parentIn, resolved.update(key))
 			else {
 				isoAssert('remove' in target)
 				target.put(parentIn, resolved.put(key, undefined as any)) // only for prisms
@@ -99,14 +99,14 @@ export function manyToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command>(
 			getTargetIdsResolved(next),
 		)
 		parentsOut.forEach((parentOut) => {
-			if (resolved.isCommand(REMOVE)) target.update(parentOut, resolved.update(REMOVE))
+			if (resolved.isCommand(REMOVE)) target.map(parentOut, resolved.update(REMOVE))
 			else {
 				isoAssert('remove' in target)
 				target.remove(parentOut)
 			}
 		})
 		parentsIn.forEach((parentIn) => {
-			if (resolved.isCommand(REMOVE)) target.update(parentIn, resolved.update(key))
+			if (resolved.isCommand(REMOVE)) target.map(parentIn, resolved.update(key))
 			else {
 				isoAssert('remove' in target)
 				target.put(parentIn, resolved.put(key, undefined as any)) // only for prisms
@@ -133,8 +133,8 @@ export function manyToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM>(
 			getTargetIdsResolved(last),
 			getTargetIdsResolved(next),
 		)
-		parentsOut.forEach((parentOut) => target.update(parentOut, resolved.update(removeValue(key))))
-		parentsIn.forEach((parentIn) => target.update(parentIn, resolved.update(insertValue(key))))
+		parentsOut.forEach((parentOut) => target.map(parentOut, resolved.update(removeValue(key))))
+		parentsIn.forEach((parentIn) => target.map(parentIn, resolved.update(insertValue(key))))
 	})
 	return resolved.view.bind(resolved)
 }
@@ -155,8 +155,8 @@ export function oneToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM>(
 		const parentOut = getTargetIdResolved(last)
 		const parentIn = getTargetIdResolved(next)
 		if (parentIn === parentOut) return
-		if (parentOut !== undefined) target.update(parentOut, resolved.update(removeValue(key)))
-		if (parentIn !== undefined) target.update(parentIn, resolved.update(insertValue(key)))
+		if (parentOut !== undefined) target.map(parentOut, resolved.update(removeValue(key)))
+		if (parentIn !== undefined) target.map(parentIn, resolved.update(insertValue(key)))
 	})
 	return resolved.view.bind(resolved)
 }

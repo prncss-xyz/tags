@@ -1,10 +1,17 @@
-import { id } from '@constellar/core'
 import { program } from 'commander'
 
 import { Category } from './category'
 import { exportData, importData } from './commands/export'
-import { getFile } from './commands/scan'
-import { tagAdd, tagAddList, tagDel, tagGet, listResourcesByTag, listTags } from './commands/tags'
+import { scanFile } from './commands/scan'
+import { scanDirs } from './commands/scanDirs'
+import {
+	listAllTags,
+	listResourcesByTag,
+	tagAdd,
+	tagAddList,
+	tagDel,
+	tagGet,
+} from './commands/tags'
 import { getConfig } from './config'
 import { reset } from './db'
 import { logger } from './logger'
@@ -15,8 +22,12 @@ program.command('dump').action(async () => {
 	logger.log(await Category.dump())
 })
 
-program.command('scan <filename>').action(async (filename) => {
-	await getFile(filename, id)
+program.command('scan').action(async () => {
+	await scanDirs()
+})
+
+program.command('scan-file <filename>').action(async (filename) => {
+	await scanFile(filename)
 })
 
 program.command('config').action(async () => {
@@ -43,8 +54,8 @@ program.command('file-ls <tag>').action(async (tag) => {
 	await listResourcesByTag(tag)
 })
 
-program.command('tag-ls').action(async () => {
-	await listTags()
+program.command('ls-tag').action(async () => {
+	await listAllTags()
 })
 
 program.command('reset').action(async () => {

@@ -4,7 +4,7 @@ import { Level } from 'level'
 
 import { db } from './db'
 import { logger } from './logger'
-import { IFamily, IFamilyPutRemove, manyToMany, NonRemove, oneToMany, oneToOne } from './relations'
+import { IFamily, manyToMany, NonRemove, oneToMany, oneToOne } from './relations'
 import { Init } from './utils/fromInit'
 import { isoAssert } from './utils/isoAssert'
 
@@ -19,20 +19,29 @@ function isDefault<T>(value: T[]): unknown {
 
 export type Event<Key, Value> = { key: Key } & { last: undefined | Value; next: undefined | Value }
 
-type Opts = Partial<{ index: boolean }>
+type Opts<Key, Value> = Partial<{
+	index: boolean
+	shouldRemove: (key: Key, value: Value) => unknown
+}>
+
+function alwaysFalse() {
+	return false
+}
 
 export type FamilyToKey<Family> = Family extends IFamily<infer K, any> ? K : never
 export type FamilyToValue<Family> = Family extends IFamily<any, infer V> ? V : never
 
 export class Category<Key, Value> implements IFamily<Key, Value> {
 	index: boolean
+	shouldRemove: (key: Key, value: Value) => unknown
 	protected sublevel: Level<Key, Value>
 	protected subscriptions = new Set<(event: Event<Key, Value>) => void>()
 	constructor(
 		protected prefix: string,
-		opts?: Opts,
+		opts?: Opts<Key, Value>,
 	) {
 		this.index = opts?.index ?? false
+		this.shouldRemove = opts?.shouldRemove ?? alwaysFalse
 		isoAssert(!categories.has(prefix), `category ${prefix} already exists`)
 		categories.set(prefix, this)
 		//  the package do not provide types for sublevel
@@ -53,6 +62,18 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 	}
 	async get(key: Key): Promise<undefined | Value> {
 		return await this.sublevel.get(key)
+	}
+	keys(
+		opts?: Partial<{
+			gt: Key
+			gte: Key
+			limit: number
+			lt: Key
+			lte: Key
+			reverse: boolean
+		}>,
+	) {
+		return this.sublevel.keys(opts ?? {})
 	}
 	list(
 		opts?: Partial<{
@@ -75,6 +96,31 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 	) {
 		return new ManyToMany(prefix, this, optic.view.bind(optic), getDefault<Key>, isDefault, id)
 	}
+	async map(key: Key, cb: (last: Value) => Value) {
+		await this.modify(key, async (l) => {
+			if (l === undefined) return undefined
+			return cb(l)
+		})
+	}
+	async modify(
+		key: Key,
+		up: ((last: undefined | Value) => Promise<undefined | Value>) | undefined | Value,
+	) {
+		const last = await this.get(key)
+		let next = isFunction(up) ? await up(last) : up
+		if (last === next) return last
+		if (next !== undefined && this.shouldRemove(key, next)) next = undefined
+		if (next === undefined) await this.sublevel.del(key)
+		else await this.sublevel.put(key, next)
+		this.subscriptions.forEach((cb) =>
+			cb({
+				key,
+				last,
+				next,
+			}),
+		)
+		return last
+	}
 	oneToMany<TKey, Fail, Command, IS_PRISM>(
 		prefix: string,
 		optic: COptic<TKey, Value, Fail, Command, IS_PRISM>,
@@ -93,78 +139,28 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 		)
 	}
 	async put(key: Key, next: Value) {
-		const last = await this.get(key)
-		await this.sublevel.put(key, next)
-		this.subscriptions.forEach((cb) =>
-			cb({
-				key,
-				last,
-				next,
-			}),
-		)
-		return next
+		return this.modify(key, next)
 	}
 	async remove(key: Key) {
-		const last = await this.get(key)
-		this.sublevel.del(key)
-		this.subscriptions.forEach((cb) =>
-			cb({
-				key,
-				last,
-				next: undefined,
-			}),
-		)
+		return this.modify(key, undefined)
 	}
 	subscribe(cb: (event: Event<Key, Value>) => void) {
 		this.subscriptions.add(cb)
 		return () => this.subscriptions.delete(cb)
 	}
-	async update(key: Key, up: ((last: Value) => Value) | undefined | Value) {
-		const last = await this.get(key)
-		let next: undefined | Value
-		if (isFunction(up)) {
-			const from = last
-			isoAssert(from !== undefined, `key '${key}' has no default value for category ${this.prefix}`)
-			next = up(from)
-		} else if (up !== undefined) {
-			return this.put(key, up)
-		}
-		if (next === undefined) {
-			await this.remove(key)
-			return undefined
-		}
-		await this.put(key, next)
-		return next
-	}
 }
 
-export class CategoryWithDefault<Key, Value>
-	extends Category<Key, Value>
-	implements IFamilyPutRemove<Key, Value>
-{
+export class CategoryWithDefault<Key, Value> extends Category<Key, Value> {
 	constructor(
 		prefix: string,
 		private defaultValue: (key: Key) => Value,
-		private isDefault: (value: Value) => unknown,
-		opts?: Opts,
+		isDefault: (key: Key, value: Value) => unknown,
+		opts?: { index: boolean },
 	) {
-		super(prefix, opts)
+		super(prefix, { ...opts, shouldRemove: isDefault })
 	}
 	async get(key: Key): Promise<Value> {
 		return (await this.sublevel.get(key)) ?? this.defaultValue(key)
-	}
-	async put(key: Key, next: Value) {
-		const last = await this.get(key)
-		if (this.isDefault(next)) await this.sublevel.del(key)
-		else await this.sublevel.put(key, next)
-		this.subscriptions.forEach((cb) =>
-			cb({
-				key,
-				last,
-				next,
-			}),
-		)
-		return next
 	}
 }
 
@@ -172,7 +168,7 @@ export class CategoryWithCreate<Key, Value, Init> extends Category<Key, Value> {
 	constructor(
 		prefix: string,
 		private creator: (init: Init) => [Key, Value],
-		opts?: Opts,
+		opts?: Opts<Key, Value>,
 	) {
 		super(prefix, opts)
 	}
@@ -213,7 +209,7 @@ export class OneToMany<
 		isDefault: (value: TValue) => unknown,
 		o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
 	) {
-		super(prefix, getDefault, isDefault, { index: true })
+		super(prefix, getDefault, (_key, value) => isDefault(value), { index: true })
 		this.back = oneToMany(source, getTargetId, this, o)
 	}
 }
@@ -236,7 +232,7 @@ export class ManyToMany<
 		isDefault: (value: TValue) => unknown,
 		o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
 	) {
-		super(prefix, getDefault, isDefault, { index: true })
+		super(prefix, getDefault, (_key, value) => isDefault(value), { index: true })
 		this.back = manyToMany(source, getTargetIds, this, o)
 	}
 }
