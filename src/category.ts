@@ -8,7 +8,7 @@ import { log } from './log'
 import { IFamily, IFamilyPutRemove, manyToMany, oneToMany } from './relations'
 import { Init } from './utils/fromInit'
 
-const categories = new Map<string, Category<any, any>>()
+export const categories = new Map<string, Category<any, any>>()
 
 function getDefault<T>(): T[] {
 	return []
@@ -18,13 +18,18 @@ export type Event<Key, Value> = { key: Key } & { last: undefined | Value; next: 
 
 type Opts = Partial<{ index: boolean }>
 
+export type FamilyToKey<Family> = Family extends IFamily<infer K, any> ? K : never
+export type FamilyToValue<Family> = Family extends IFamily<any, infer V> ? V : never
+
 export class Category<Key, Value> implements IFamily<Key, Value> {
+	index: boolean
 	protected sublevel: Level<Key, Value>
 	protected subscriptions = new Set<(event: Event<Key, Value>) => void>()
 	constructor(
 		protected prefix: string,
-		protected opts?: Opts,
+		opts?: Opts,
 	) {
+		this.index = opts?.index ?? false
 		assert(!categories.has(prefix), `category ${prefix} already exists`)
 		categories.set(prefix, this)
 		//  the package do not provide types for sublevel

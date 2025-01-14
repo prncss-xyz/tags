@@ -2,10 +2,11 @@ import { id } from '@constellar/core'
 import { program } from 'commander'
 
 import { Category } from './category'
+import { exportData, importData } from './commands/export'
+import { getFile } from './commands/scan'
+import { addTag, delTag, getTags, listResourcesByTag, listTags } from './commands/tags'
 import { getConfig } from './config'
 import { reset } from './db'
-import { getFile } from './files/scan'
-import { addTag, delTag, getTags, listResourcesByTag, listTags } from './files/tags'
 import { log } from './log'
 
 // TODO: tag-rm tag-mv export import
@@ -44,6 +45,14 @@ program.command('tag-ls').action(async () => {
 
 program.command('reset').action(async () => {
 	await reset()
+})
+
+program.command('export').action(async () => {
+	await exportData()
+})
+
+program.command('import <dir>').action(async (dir) => {
+	await importData(dir)
 })
 
 program.parseAsync(process.argv)

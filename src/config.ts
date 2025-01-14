@@ -18,6 +18,7 @@ const ConfigSchema = z.object({
 		}
 		return record
 	}),
+	export: z.optional(z.string()),
 })
 
 async function getConfig_() {
