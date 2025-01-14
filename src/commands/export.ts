@@ -4,7 +4,7 @@ import path from 'path'
 
 import { categories } from '../category'
 import { getConfig } from '../config'
-import { log } from '../log'
+import { logger } from '../logger'
 
 // TODO: could be a zip file, continuous stream and BSON
 
@@ -19,7 +19,7 @@ export async function exportData() {
 	const config = await getConfig()
 	let exp = config.export
 	if (!exp) {
-		log.error('export is not configured')
+		logger.error('export is not configured')
 		process.exit(1)
 	}
 	exp = path.resolve(

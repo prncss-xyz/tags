@@ -4,15 +4,15 @@ import { program } from 'commander'
 import { Category } from './category'
 import { exportData, importData } from './commands/export'
 import { getFile } from './commands/scan'
-import { addTag, delTag, getTags, listResourcesByTag, listTags } from './commands/tags'
+import { tagAdd, tagAddList, tagDel, tagGet, listResourcesByTag, listTags } from './commands/tags'
 import { getConfig } from './config'
 import { reset } from './db'
-import { log } from './log'
+import { logger } from './logger'
 
 // TODO: tag-rm tag-mv scan
 
 program.command('dump').action(async () => {
-	log.log(await Category.dump())
+	logger.log(await Category.dump())
 })
 
 program.command('scan <filename>').action(async (filename) => {
@@ -20,19 +20,23 @@ program.command('scan <filename>').action(async (filename) => {
 })
 
 program.command('config').action(async () => {
-	log.log(await getConfig())
+	logger.log(await getConfig())
 })
 
 program.command('tag-add <tag> <filename...>').action(async (tag, filenames) => {
-	await addTag(tag, filenames)
+	await tagAdd(tag, filenames)
+})
+
+program.command('tag-add-list <tag> <filename...>').action(async (tag, filenames) => {
+	await tagAddList(tag, filenames)
 })
 
 program.command('tag-rm <tag> <filename...>').action(async (tag, filenames) => {
-	await delTag(tag, filenames)
+	await tagDel(tag, filenames)
 })
 
 program.command('tag-get <filename>').action(async (filename) => {
-	await getTags(filename)
+	await tagGet(filename)
 })
 
 program.command('file-ls <tag>').action(async (tag) => {

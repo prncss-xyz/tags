@@ -1,5 +1,6 @@
 import { focus, prism } from '@constellar/core'
-import assert from 'node:assert'
+
+import { isoAssert } from '../../utils/isoAssert'
 
 const pathSep = '/'
 const keySep = ' '
@@ -7,9 +8,9 @@ const keySep = ' '
 export function getPathPrism(dirs: Record<string, string>) {
 	function setter(rawPath: string) {
 		const [head, ...tail] = rawPath.split(keySep)
-		assert(head !== undefined, 'path must start with a dir reference')
+		isoAssert(head !== undefined, 'path must start with a dir reference')
 		const base = dirs[head]
-		assert(base !== undefined, `dir ${head} not found in dirs`)
+		isoAssert(base !== undefined, `dir ${head} not found in dirs`)
 		return [base, ...tail].map(decodeURI).join(pathSep)
 	}
 

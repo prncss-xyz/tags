@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { COptic, Focus, id, isFunction, PRISM } from '@constellar/core'
 import { Level } from 'level'
-import assert from 'node:assert'
 
 import { db } from './db'
-import { log } from './log'
+import { logger } from './logger'
 import { IFamily, IFamilyPutRemove, manyToMany, NonRemove, oneToMany, oneToOne } from './relations'
 import { Init } from './utils/fromInit'
+import { isoAssert } from './utils/isoAssert'
 
 export const categories = new Map<string, Category<any, any>>()
 
@@ -33,15 +33,15 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 		opts?: Opts,
 	) {
 		this.index = opts?.index ?? false
-		assert(!categories.has(prefix), `category ${prefix} already exists`)
+		isoAssert(!categories.has(prefix), `category ${prefix} already exists`)
 		categories.set(prefix, this)
 		//  the package do not provide types for sublevel
 		this.sublevel = db.sublevel<Key, Value>(prefix, { valueEncoding: 'json' }) as any
 	}
 	static async dump() {
 		for (const [prefix, category] of categories.entries()) {
-			log.log(prefix)
-			for await (const entry of category.sublevel.iterator()) log.log(entry)
+			logger.log(prefix)
+			for await (const entry of category.sublevel.iterator()) logger.log(entry)
 		}
 	}
 	static async export(write: (prefix: string) => (key: unknown, value: unknown) => Promise<void>) {
@@ -124,7 +124,7 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 		let next: undefined | Value
 		if (isFunction(up)) {
 			const from = last
-			assert(from !== undefined, `key ${key} has no default value for category ${this.prefix}`)
+			isoAssert(from !== undefined, `key '${key}' has no default value for category ${this.prefix}`)
 			next = up(from)
 		} else if (up !== undefined) {
 			return this.put(key, up)
@@ -168,27 +168,6 @@ export class CategoryWithDefault<Key, Value>
 	}
 }
 
-export class CategoryWithPut<Key, Value>
-	extends Category<Key, Value>
-	implements IFamilyPutRemove<Key, Value>
-{
-	constructor(prefix: string, opts?: Opts) {
-		super(prefix, opts)
-	}
-	async put(key: Key, next: Value) {
-		const last = await this.get(key)
-		await this.sublevel.put(key, next)
-		this.subscriptions.forEach((cb) =>
-			cb({
-				key,
-				last,
-				next,
-			}),
-		)
-		return next
-	}
-}
-
 export class CategoryWithCreate<Key, Value, Init> extends Category<Key, Value> {
 	constructor(
 		prefix: string,
@@ -200,9 +179,9 @@ export class CategoryWithCreate<Key, Value, Init> extends Category<Key, Value> {
 	async create(init: Init) {
 		const [key, next] = this.creator(init)
 		const last = await this.get(key)
-		assert(
+		isoAssert(
 			last === undefined,
-			`key ${key} already exists for category ${this.prefix} (init = ${init})`,
+			`key '${key}' already exists for category ${this.prefix} (init = ${init})`,
 		)
 		await this.sublevel.put(key, next)
 		this.subscriptions.forEach((cb) =>

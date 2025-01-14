@@ -1,12 +1,12 @@
 import { Level } from 'level'
-import assert from 'node:assert'
 import path from 'node:path/posix'
 import { xdgData } from 'xdg-basedir'
 
 import { appName } from './appName'
-import { log } from './log'
+import { logger } from './logger'
+import { isoAssert } from './utils/isoAssert'
 
-assert(xdgData)
+isoAssert(xdgData)
 const dbPath = path.join(xdgData, appName, 'db')
 export const db = new Level<unknown, unknown>(dbPath)
 
@@ -16,6 +16,6 @@ export function reset() {
 
 export async function dump() {
 	for await (const item of db.iterator()) {
-		log.log(item)
+		logger.log(item)
 	}
 }

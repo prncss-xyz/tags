@@ -1,4 +1,3 @@
-import assert from 'node:assert'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { xdgConfig } from 'xdg-basedir'
@@ -6,13 +5,14 @@ import { parse } from 'yaml'
 import { z } from 'zod'
 
 import { appName } from './appName'
-import { log } from './log'
+import { logger } from './logger'
+import { isoAssert } from './utils/isoAssert'
 
 const home = process.env.HOME
 
 const ConfigSchema = z.object({
 	dirs: z.record(z.string()).transform((record) => {
-		assert(home)
+		isoAssert(home)
 		for (const [key, value] of Object.entries(record)) {
 			record[key] = path.resolve(home, value)
 		}
@@ -23,13 +23,13 @@ const ConfigSchema = z.object({
 
 async function getConfig_() {
 	const config = xdgConfig
-	assert(config, 'xdgConfig not found')
+	isoAssert(config, 'xdgConfig not found')
 	let raw: string | undefined
 	const filePath = config + `/${appName}/config.yaml`
 	try {
 		raw = await readFile(filePath, 'utf8')
 	} catch (_e) {
-		log.log(`config not found at ${filePath}`)
+		logger.log(`config not found at ${filePath}`)
 		process.exit(1)
 	}
 	return ConfigSchema.parse(parse(raw))

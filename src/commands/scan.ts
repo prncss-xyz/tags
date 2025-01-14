@@ -1,5 +1,4 @@
 import { pipe } from '@constellar/core'
-import assert from 'node:assert'
 import { stat } from 'node:fs/promises'
 import { resolve } from 'node:path/posix'
 
@@ -12,7 +11,8 @@ import {
 } from '../categories/Resource'
 import { getPathPrism } from '../categories/Resource/pathPrism'
 import { getConfig } from '../config'
-import { log } from '../log'
+import { logger } from '../logger'
+import { isoAssert } from '../utils/isoAssert'
 import { calculateChecksum } from './checksum'
 
 export async function scanFile(filePath: string) {
@@ -21,7 +21,7 @@ export async function scanFile(filePath: string) {
 	const pathPrism = getPathPrism(config.dirs)
 	const resourceKey = pathPrism.view(filePath)
 	if (resourceKey === undefined) {
-		log.log(`file ${filePath} is not in a managed directory`)
+		logger.log(`file ${filePath} is not in a managed directory`)
 		return undefined
 	}
 	let mtime: number
@@ -56,7 +56,7 @@ export async function scanFile(filePath: string) {
 export async function modFile(filePath: string, mode: (r: IResource) => IResource) {
 	const key = await scanFile(filePath)
 	if (key === undefined) {
-		log.error('file not found', filePath)
+		logger.error('file not found', filePath)
 		return
 	}
 	return Resources.update(key, mode)
@@ -65,10 +65,10 @@ export async function modFile(filePath: string, mode: (r: IResource) => IResourc
 export async function getFile<T>(filePath: string, select: (r: IResource) => T) {
 	const key = await scanFile(filePath)
 	if (key === undefined) {
-		log.error('file not found', filePath)
+		logger.error('file not found', filePath)
 		return
 	}
 	const resource = await Resources.get(key)
-	assert(resource !== undefined)
+	isoAssert(resource !== undefined)
 	return select(resource)
 }

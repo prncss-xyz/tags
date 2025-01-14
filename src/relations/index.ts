@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { focus, Focus, isUndefined, PRISM, REMOVE } from '@constellar/core'
-import assert from 'node:assert'
 
 import { insertValue, removeValue, symmetricDiff } from '../utils/arrays'
 import { fromInit, Init } from '../utils/fromInit'
+import { isoAssert } from '../utils/isoAssert'
 
 export type UpdateEvent<Key, Value> = {
 	key: Key
@@ -54,14 +54,14 @@ export function oneToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command>(
 		if (parentOut !== undefined) {
 			if (resolved.isCommand(REMOVE)) target.update(parentOut, resolved.update(REMOVE))
 			else {
-				assert('remove' in target)
+				isoAssert('remove' in target)
 				target.remove(parentOut)
 			}
 		}
 		if (parentIn !== undefined) {
 			if (resolved.isCommand(REMOVE)) target.update(parentIn, resolved.update(key))
 			else {
-				assert('remove' in target)
+				isoAssert('remove' in target)
 				target.put(parentIn, resolved.put(key, undefined as any)) // only for prisms
 			}
 		}
@@ -101,14 +101,14 @@ export function manyToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command>(
 		parentsOut.forEach((parentOut) => {
 			if (resolved.isCommand(REMOVE)) target.update(parentOut, resolved.update(REMOVE))
 			else {
-				assert('remove' in target)
+				isoAssert('remove' in target)
 				target.remove(parentOut)
 			}
 		})
 		parentsIn.forEach((parentIn) => {
 			if (resolved.isCommand(REMOVE)) target.update(parentIn, resolved.update(key))
 			else {
-				assert('remove' in target)
+				isoAssert('remove' in target)
 				target.put(parentIn, resolved.put(key, undefined as any)) // only for prisms
 			}
 		})
