@@ -1,8 +1,6 @@
 import { focus, pipe, prop, valueOr } from '@constellar/core'
-import { id } from '@constellar/core'
 
-import { CategoryWithCreate, CategoryWithDefault } from '../category'
-import { oneToMany } from '../relations'
+import { CategoryWithCreate } from '../category'
 import { createUUID } from '../utils/uuid'
 
 type Pretty<T> = { [K in keyof T]: T[K] }
@@ -27,8 +25,4 @@ interface Payload {
 export const fName = focus<ITag>()(prop('name'))
 export const fImplies = focus<ITag>()(pipe(prop('implies'), valueOr<string[]>([])))
 
-export const NameToTags = new CategoryWithDefault<string, string[]>('NameToTag', () => [], {
-	index: true,
-})
-
-export const nameToTags = oneToMany(Tags, fName.view.bind(fName), NameToTags, id)
+export const NameToTags = Tags.oneToMany('NameToTag', fName)

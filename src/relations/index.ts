@@ -11,55 +11,41 @@ export type UpdateEvent<Key, Value> = {
 	next: undefined | Value
 }
 
-function always() {
-	return true as const
-}
-
-export interface IFamily<Key, Value, R> {
+export interface IFamily<Key, Value> {
 	subscribe: (callback: (event: UpdateEvent<Key, Value>) => void) => void
 	update: (key: Key, modify: (t: Value) => Value) => Promise<undefined | Value>
 }
 
-export interface IFamilyPutRemove<Key, Value, R> extends IFamily<Key, Value, R> {
+export interface IFamilyPutRemove<Key, Value> extends IFamily<Key, Value> {
 	put: (key: Key, value: Value) => Promise<undefined | Value>
 	remove: (key: Key) => Promise<void>
 }
 
 type NonRemove<T> = T extends typeof REMOVE ? never : T
 
-export function oneToOne<SValue, TValue, SKey, TKey, Fail, Command, R, Cond = true>(
-	source: IFamily<SKey, SValue, R>,
+export function oneToOne<SValue, TValue, SKey, TKey, Fail, Command>(
+	source: IFamily<SKey, SValue>,
 	getTargetId: Init<TKey | undefined, [SValue]>,
-	target: IFamily<TKey, TValue, R>,
+	target: IFamily<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, NonRemove<Command>, PRISM>,
-	cond?: (s: SValue) => Cond,
-): {
-	back: (t: TValue) => Fail | SKey
-	forth: (source: SValue) => (Cond extends true ? never : undefined) | TKey
-}
-export function oneToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, R, Cond = true>(
-	source: IFamily<SKey, SValue, R>,
+): (t: TValue) => Fail | SKey
+export function oneToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM>(
+	source: IFamily<SKey, SValue>,
 	getTargetId: Init<TKey | undefined, [SValue]>,
-	target: IFamilyPutRemove<TKey, TValue, R>,
+	target: IFamilyPutRemove<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, typeof REMOVE, IS_PRISM>,
-	cond?: (s: SValue) => Cond,
-): {
-	back: (t: TValue) => Fail | SKey
-	forth: (source: SValue) => (Cond extends true ? never : undefined) | TKey
-}
-export function oneToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command, R, Cond = true>(
-	source: IFamily<SKey, SValue, R>,
+): (t: TValue) => Fail | SKey
+export function oneToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command>(
+	source: IFamily<SKey, SValue>,
 	getTargetId: Init<TKey | undefined, [SValue]>,
-	target: IFamily<TKey, TValue, R> | IFamilyPutRemove<TKey, TValue, R>,
+	target: IFamily<TKey, TValue> | IFamilyPutRemove<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, Command, IS_PRISM>,
-	cond: (s: SValue) => Cond = always as any,
 ) {
 	const resolved = focus<TValue>()(o)
 	function getTargetIdResolved(source: SValue | undefined) {
-		if (isUndefined(source) || !cond(source)) return undefined
+		if (isUndefined(source)) return undefined
 		return fromInit(getTargetId, source)
 	}
-	const getSourceId: (t: TValue) => Fail | SKey = resolved.view.bind(resolved)
 	source.subscribe((event) => {
 		const { key, last, next } = event
 		const parentOut = getTargetIdResolved(last)
@@ -80,47 +66,32 @@ export function oneToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command, R,
 			}
 		}
 	})
-	return {
-		back: getSourceId,
-		forth: getTargetIdResolved as (
-			source: SValue,
-		) => (Cond extends true ? never : undefined) | TKey,
-	}
+	return resolved.view.bind(resolved)
 }
 
-export function manyToOne<SValue, TValue, SKey, TKey, Fail, Command, R, Cond = true>(
-	source: IFamily<SKey, SValue, R>,
+export function manyToOne<SValue, TValue, SKey, TKey, Fail, Command>(
+	source: IFamily<SKey, SValue>,
 	getTargetIds: Init<TKey[], [SValue]>,
-	target: IFamily<TKey, TValue, R> | IFamilyPutRemove<TKey, TValue, R>,
+	target: IFamily<TKey, TValue> | IFamilyPutRemove<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, NonRemove<Command>, PRISM>,
-	cond?: (s: SValue) => Cond,
-): {
-	back: (t: TValue) => Fail | SKey
-	forth: (source: SValue | undefined) => TKey[]
-}
-export function manyToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, R, Cond = true>(
-	source: IFamily<SKey, SValue, R>,
+): (t: TValue) => Fail | SKey
+export function manyToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM>(
+	source: IFamily<SKey, SValue>,
 	getTargetIds: Init<TKey[], [SValue]>,
-	target: IFamily<TKey, TValue, R> | IFamilyPutRemove<TKey, TValue, R>,
+	target: IFamily<TKey, TValue> | IFamilyPutRemove<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, typeof REMOVE, IS_PRISM>,
-	cond?: (s: SValue) => Cond,
-): {
-	back: (t: TValue) => Fail | SKey
-	forth: (source: SValue | undefined) => TKey[]
-}
-export function manyToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command, R, Cond = true>(
-	source: IFamily<SKey, SValue, R>,
+): (t: TValue) => Fail | SKey
+export function manyToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command>(
+	source: IFamily<SKey, SValue>,
 	getTargetIds: Init<TKey[], [SValue]>,
-	target: IFamily<TKey, TValue, R> | IFamilyPutRemove<TKey, TValue, R>,
+	target: IFamily<TKey, TValue> | IFamilyPutRemove<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, Command, IS_PRISM>,
-	cond: (s: SValue) => Cond = always as any,
 ) {
 	const resolved = focus<TValue>()(o)
 	function getTargetIdsResolved(source: SValue | undefined) {
-		if (isUndefined(source) || !cond(source)) return []
+		if (isUndefined(source)) return []
 		return fromInit(getTargetIds, source)
 	}
-	const getSourceId: (t: TValue) => Fail | SKey = resolved.view.bind(resolved)
 	source.subscribe((event) => {
 		const { key, last, next } = event
 		const [parentsOut, parentsIn] = symmetricDiff(
@@ -142,23 +113,20 @@ export function manyToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command, R
 			}
 		})
 	})
-
-	return { back: getSourceId, forth: getTargetIdsResolved }
+	return resolved.view.bind(resolved)
 }
 
-export function manyToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM, R, Cond = true>(
-	source: IFamily<SKey, SValue, R>,
+export function manyToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM>(
+	source: IFamily<SKey, SValue>,
 	getTargetIds: Init<TKey[], [SValue]>,
-	target: IFamily<TKey, TValue, R>,
+	target: IFamily<TKey, TValue>,
 	o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
-	cond: (s: SValue) => Cond = always as any,
 ) {
 	const resolved = focus<TValue>()(o)
 	function getTargetIdsResolved(source: SValue | undefined) {
-		if (isUndefined(source) || !cond(source)) return []
+		if (isUndefined(source)) return []
 		return fromInit(getTargetIds, source)
 	}
-	const getSourceIds: (t: TValue) => Fail | SKey[] = resolved.view.bind(resolved)
 	source.subscribe((event) => {
 		const { key, last, next } = event
 		const [parentsOut, parentsIn] = symmetricDiff(
@@ -168,22 +136,20 @@ export function manyToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM, 
 		parentsOut.forEach((parentOut) => target.update(parentOut, resolved.update(removeValue(key))))
 		parentsIn.forEach((parentIn) => target.update(parentIn, resolved.update(insertValue(key))))
 	})
-	return { back: getSourceIds, forth: getTargetIdsResolved }
+	return resolved.view.bind(resolved)
 }
 
-export function oneToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM, R, Cond = true>(
-	source: IFamily<SKey, SValue, R>,
+export function oneToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM>(
+	source: IFamily<SKey, SValue>,
 	getTargetId: Init<TKey | undefined, [SValue]>,
-	target: IFamily<TKey, TValue, R>,
+	target: IFamily<TKey, TValue>,
 	o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
-	cond: (s: SValue) => Cond = always as any,
 ) {
 	const resolved = focus<TValue>()(o)
 	function getTargetIdResolved(source: SValue | undefined) {
-		if (isUndefined(source) || !cond(source)) return undefined
+		if (isUndefined(source)) return undefined
 		return fromInit(getTargetId, source)
 	}
-	const getSourceIds: (t: TValue) => Fail | SKey[] = resolved.view.bind(resolved)
 	source.subscribe((event) => {
 		const { key, last, next } = event
 		const parentOut = getTargetIdResolved(last)
@@ -192,10 +158,5 @@ export function oneToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM, R
 		if (parentOut !== undefined) target.update(parentOut, resolved.update(removeValue(key)))
 		if (parentIn !== undefined) target.update(parentIn, resolved.update(insertValue(key)))
 	})
-	return {
-		back: getSourceIds,
-		forth: getTargetIdResolved as (
-			source: SValue,
-		) => (Cond extends true ? never : undefined) | TKey,
-	}
+	return resolved.view.bind(resolved)
 }

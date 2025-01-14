@@ -1,19 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { isFunction } from '@constellar/core'
+import { COptic, Focus, id, isFunction } from '@constellar/core'
 import { Level } from 'level'
 import assert from 'node:assert'
 
 import { db } from './db'
 import { log } from './log'
-import { IFamily, IFamilyPutRemove } from './relations'
+import { IFamily, IFamilyPutRemove, manyToMany, oneToMany } from './relations'
+import { Init } from './utils/fromInit'
 
 const categories = new Map<string, Category<any, any>>()
+
+function getDefault<T>(): T[] {
+	return []
+}
 
 export type Event<Key, Value> = { key: Key } & { last: undefined | Value; next: undefined | Value }
 
 type Opts = Partial<{ index: boolean }>
 
-export class Category<Key, Value> implements IFamily<Key, Value, Promise<void>> {
+export class Category<Key, Value> implements IFamily<Key, Value> {
 	protected sublevel: Level<Key, Value>
 	protected subscriptions = new Set<(event: Event<Key, Value>) => void>()
 	constructor(
@@ -55,6 +60,20 @@ export class Category<Key, Value> implements IFamily<Key, Value, Promise<void>> 
 	}
 	listen(cb: (Event: Event<Key, Value>, category: typeof this) => void) {
 		return this.subscribe((event) => cb(event, this))
+	}
+	manyToMany<TKey, Fail, Command, IS_PRISM>(
+		prefix: string,
+		optic: COptic<TKey[], Value, Fail, Command, IS_PRISM>,
+	) {
+		const getTargetIds = optic.view.bind(optic)
+		return new ManyToMany(prefix, this, getTargetIds, getDefault<Key>, id)
+	}
+	oneToMany<TKey, Fail, Command, IS_PRISM>(
+		prefix: string,
+		optic: COptic<TKey, Value, Fail, Command, IS_PRISM>,
+	) {
+		const getTargetId = optic.view.bind(optic)
+		return new OneToMany(prefix, this, getTargetId, getDefault<Key>, id)
 	}
 	async put(key: Key, next: Value) {
 		const last = await this.get(key)
@@ -111,7 +130,7 @@ export class Category<Key, Value> implements IFamily<Key, Value, Promise<void>> 
 
 export class CategoryWithDefault<Key, Value>
 	extends Category<Key, Value>
-	implements IFamilyPutRemove<Key, Value, Promise<void>>
+	implements IFamilyPutRemove<Key, Value>
 {
 	constructor(
 		prefix: string,
@@ -139,7 +158,7 @@ export class CategoryWithDefault<Key, Value>
 
 export class CategoryWithPut<Key, Value>
 	extends Category<Key, Value>
-	implements IFamilyPutRemove<Key, Value, Promise<void>>
+	implements IFamilyPutRemove<Key, Value>
 {
 	constructor(prefix: string, opts?: Opts) {
 		super(prefix, opts)
@@ -182,5 +201,51 @@ export class CategoryWithCreate<Key, Value, Init> extends Category<Key, Value> {
 			}),
 		)
 		return key
+	}
+}
+
+export class OneToMany<
+	SValue,
+	TValue,
+	SKey,
+	TKey,
+	Fail,
+	Command,
+	IS_PRISM,
+> extends CategoryWithDefault<TKey, TValue> {
+	back: (t: TValue) => SKey[]
+	constructor(
+		prefix: string,
+		source: IFamily<SKey, SValue>,
+		getTargetId: Init<TKey | undefined, [SValue]>,
+		getDefault: () => TValue,
+		o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
+	) {
+		super(prefix, getDefault, { index: true })
+		const back = oneToMany(source, getTargetId, this, o)
+		this.back = back
+	}
+}
+
+export class ManyToMany<
+	SValue,
+	TValue,
+	SKey,
+	TKey,
+	Fail,
+	Command,
+	IS_PRISM,
+> extends CategoryWithDefault<TKey, TValue> {
+	back: (t: TValue) => Fail | SKey[]
+	constructor(
+		prefix: string,
+		source: IFamily<SKey, SValue>,
+		getTargetIds: Init<TKey[], [SValue]>,
+		getDefault: () => TValue,
+		o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
+	) {
+		super(prefix, getDefault, { index: true })
+		const back = manyToMany(source, getTargetIds, this, o)
+		this.back = back
 	}
 }
