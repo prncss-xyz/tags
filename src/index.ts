@@ -22,6 +22,10 @@ program.command('dump').action(async () => {
 	logger.log(await Category.dump())
 })
 
+program.command('watch').action(async () => {
+	await scanDirs(true)
+})
+
 program.command('scan').action(async () => {
 	await scanDirs()
 })

@@ -38,7 +38,6 @@ export async function scanFile(filePath: string, mod = asyncIdentity<IResource |
 			try {
 				mtime = await stat(filePath).then((stat) => stat.mtimeMs)
 			} catch (_e) {
-				await Resources.remove(resourceKey)
 				return undefined
 			}
 			if (last === undefined) {

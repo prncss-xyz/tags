@@ -16,17 +16,16 @@ export const fChecksum = focus<IResource>()(prop('checksum'))
 export const fMtime = focus<IResource>()(prop('mtime'))
 
 export const ChecksumToResources = Resources.oneToMany('ChecksumToResources', fChecksum)
-export const fNumber = focus<FamilyToValue<typeof ChecksumToResources>>()(
+export const fDupe = focus<FamilyToValue<typeof ChecksumToResources>>()(
 	to((cs) => {
-		if (cs.length === 0) return 'zero'
-		if (cs.length > 1) return 'plural'
+		if (cs.length > 1) return 'dupe'
 		return undefined
 	}),
 )
 
-export const NumberToChecksumToResources = ChecksumToResources.oneToMany(
-	'NumberToChecksumToResources',
-	fNumber,
+export const DupeToChecksumToResources = ChecksumToResources.oneToMany(
+	'DupeToChecksumToResources',
+	fDupe,
 )
 
 export const TagToResources = Resources.manyToMany('TagToResources', fTags)
