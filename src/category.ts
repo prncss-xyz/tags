@@ -119,7 +119,7 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 				next,
 			}),
 		)
-		return last
+		return next
 	}
 	oneToMany<TKey, Fail, Command, IS_PRISM>(
 		prefix: string,

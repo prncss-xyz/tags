@@ -2,8 +2,8 @@ import { Dirent } from 'node:fs'
 import { lstat, readdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
-import { cmpPath } from '../categories/Resource/pathPrism'
-import { logger } from '../logger'
+import { logger } from '../../logger'
+import { cmpPath } from './pathPrism'
 
 export async function walkDirOrFiles(pathNames: string[], cb: (file: string) => Promise<void>) {
 	for (const pathName of pathNames) {

@@ -3,12 +3,12 @@ import { watch } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
-import { DupeToChecksumToResources, Resources } from '../categories/Resource'
-import { cmpPath, getPathPrism } from '../categories/Resource/pathPrism'
-import { getConfig } from '../config'
-import { isoAssert } from '../utils/isoAssert'
-import { zipCmp } from '../utils/iterators'
-import { getDeduper } from '../utils/time'
+import { Entries } from '.'
+import { getConfig } from '../../config'
+import { isoAssert } from '../../utils/isoAssert'
+import { zipCmp } from '../../utils/iterators'
+import { getDeduper } from '../../utils/time'
+import { cmpPath, getPathPrism } from './pathPrism'
 import { scanFile } from './scanFile'
 
 function cmp(a: Dirent, b: Dirent) {
@@ -57,7 +57,6 @@ export async function scanDirs(w = false) {
 	// we setup the watcher first, as files can be touched before all notes have been scanned
 	if (w) {
 		const cb = getDeduper((filePath: string) => {
-			console.log('%s touched', filePath)
 			scanFile(filePath)
 		}, 1000)
 		const config = await getConfig()
@@ -72,7 +71,7 @@ export async function scanDirs(w = false) {
 	}
 	const pathPrism = getPathPrism((await getConfig()).dirs)
 	const removed: string[] = []
-	await zipCmp(iterateDirs(), Resources.keys(), cmpEntry, function (a, b) {
+	await zipCmp(iterateDirs(), Entries.keys(), cmpEntry, function (a, b) {
 		if (a === undefined) {
 			isoAssert(b !== undefined)
 			removed.push(b)
@@ -81,7 +80,7 @@ export async function scanDirs(w = false) {
 		scanFile(pathPrism.put(a))
 	})
 	for (const key of removed) {
-		await Resources.remove(key)
+		await Entries.remove(key)
 	}
 	// TODO: remove checksums that are no longer in the filesystem
 }

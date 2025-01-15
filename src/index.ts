@@ -1,9 +1,9 @@
 import { program } from 'commander'
 
+import { scanDirs } from './categories/Entry/scanDirs'
+import { scanFile } from './categories/Entry/scanFile'
 import { Category } from './category'
 import { exportData, importData } from './commands/export'
-import { scanFile } from './commands/scan'
-import { scanDirs } from './commands/scanDirs'
 import {
 	listAllTags,
 	listResourcesByTag,
@@ -16,7 +16,7 @@ import { getConfig } from './config'
 import { reset } from './db'
 import { logger } from './logger'
 
-// TODO: tag-rm tag-mv scan
+// TODO: tag-rm tag-mv
 
 program.command('dump').action(async () => {
 	logger.log(await Category.dump())

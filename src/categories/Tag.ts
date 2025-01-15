@@ -3,11 +3,9 @@ import { focus, prop } from '@constellar/core'
 import { CategoryWithCreate } from '../category'
 import { createUUID } from '../utils/uuid'
 
-type Pretty<T> = { [K in keyof T]: T[K] }
-
-export type ITag = Pretty<{
+export type ITag = {
 	name: string
-}>
+}
 
 export const Tags = new CategoryWithCreate<string, ITag, string>('Tags', (name) => [
 	createUUID(),

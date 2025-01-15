@@ -9,7 +9,6 @@ export async function zipCmp<X, Y>(
 	cmp: (x: X, y: Y) => number,
 	cb: (x: undefined | X, y: undefined | Y) => void,
 ) {
-  console.log('cmp', cmp)
 	const xi = xs[Symbol.asyncIterator]()
 	const yi = ys[Symbol.asyncIterator]()
 	let x: undefined | X = (await xi.next()).value

@@ -1,11 +1,13 @@
-import { fTags, TagToResources } from '../categories/Resource'
-import { getPathPrism } from '../categories/Resource/pathPrism'
+import { ResourceToEntry } from '../categories/Entry'
+import { getPathPrism } from '../categories/Entry/pathPrism'
+import { scanFile } from '../categories/Entry/scanFile'
+import { walkDirOrFiles, walkList } from '../categories/Entry/walkDir'
+import { fTags, Resources, TagsToResources } from '../categories/Resource'
 import { NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
 import { logger } from '../logger'
 import { dedupeSorted, insertValue, removeValues } from '../utils/arrays'
-import { scanFile } from './scan'
-import { walkDirOrFiles, walkList } from './walkDir'
+import { isoAssert } from '../utils/isoAssert'
 
 async function nameToTagOrCreate(name: string) {
 	const tagKeys = await NameToTags.get(name)
@@ -18,13 +20,12 @@ export async function tagAddList(name: string, filePaths: string[]) {
 	const tagKey = await nameToTagOrCreate(name)
 	for (const filePath of filePaths) {
 		await walkList(filePath, async (filePath) => {
-			scanFile(filePath, async (last) => {
-				if (last === undefined) {
-					logger.error('file not found:', filePath)
-					return undefined
-				}
-				return fTags.modify(insertValue(tagKey), last)
-			})
+			const entry = await scanFile(filePath)
+			if (entry === undefined) {
+				logger.error('file not found:', filePath)
+				return undefined
+			}
+			await Resources.map(entry.resource, fTags.update(insertValue(tagKey)))
 		})
 	}
 }
@@ -32,62 +33,63 @@ export async function tagAddList(name: string, filePaths: string[]) {
 export async function tagDel(name: string, filePaths: string[]) {
 	const tagKeys = await NameToTags.get(name)
 	await walkDirOrFiles(filePaths, async (filePath) => {
-		scanFile(filePath, async (last) => {
-			if (last === undefined) {
-				logger.error('file not found:', filePath)
-				return undefined
-			}
-			return fTags.modify(removeValues(tagKeys), last)
-		})
+		const entry = await scanFile(filePath)
+		if (entry === undefined) {
+			logger.error('file not found:', filePath)
+			return undefined
+		}
+		await Resources.map(entry.resource, fTags.update(removeValues(tagKeys)))
 	})
 }
 
 export async function tagAdd(name: string, filePaths: string[]) {
 	const tagKey = await nameToTagOrCreate(name)
 	await walkDirOrFiles(filePaths, async (filePath) => {
-		scanFile(filePath, async (last) => {
-			if (last === undefined) {
-				logger.error('file not found:', filePath)
-				return undefined
-			}
-			return fTags.modify(insertValue(tagKey), last)
-		})
+		const entry = await scanFile(filePath)
+		if (entry === undefined) {
+			logger.error('file not found:', filePath)
+			return undefined
+		}
+		await Resources.map(entry.resource, fTags.update(insertValue(tagKey)))
 	})
 }
 
 export async function tagGet(filePath: string) {
-	const resource = await scanFile(filePath)
-	if (!resource) {
+	const entry = await scanFile(filePath)
+	if (!entry) {
 		logger.error('file not found:', filePath)
 		return undefined
 	}
-	const tagKeys = fTags.view(resource)
-	const names = await Promise.all(
-		tagKeys.map((tagKey) => Tags.get(tagKey).then((tag) => tag!.name)),
+	const resource = await Resources.get(entry.resource)
+	const names = (
+		await Promise.all(
+			fTags.view(resource).map(async (tagKey) => {
+				const tag = await Tags.get(tagKey)
+				isoAssert(tag !== undefined)
+				return tag
+			}),
+		)
 	)
-	names.sort()
+		.map((tag) => tag.name)
+		.sort()
 	logger.log(dedupeSorted(names).join('\n'))
 }
 
 export async function listResourcesByTag(tagName: string) {
+	const pathPrism = getPathPrism((await getConfig()).dirs)
 	const tagKeys = await NameToTags.get(tagName)
 	if (tagKeys.length === 0) {
 		logger.error(`tag ${tagName} not found`)
 		return
 	}
-
-	const pathPrism = getPathPrism((await getConfig()).dirs)
-	const filePaths = (
-		await Promise.all(
-			tagKeys.map((tagKey) =>
-				TagToResources.get(tagKey).then((resourceKeys) =>
-					resourceKeys.map((resourceKey) => pathPrism.put(resourceKey)),
-				),
-			),
-		)
+	const resourceKeys = (
+		await Promise.all(tagKeys.map((tagKey) => TagsToResources.get(tagKey)))
 	).flat()
-	filePaths.sort()
-	logger.log(dedupeSorted(filePaths.join('\n')))
+	const fileKeys = (
+		await Promise.all(resourceKeys.map((resourceKey) => ResourceToEntry.get(resourceKey)))
+	).flat()
+	const filePaths = fileKeys.map((fileKey) => pathPrism.put(fileKey)).sort()
+	logger.log(dedupeSorted(filePaths).join('\n'))
 }
 
 export async function listAllTags() {
@@ -96,5 +98,5 @@ export async function listAllTags() {
 		names.push(name)
 	}
 	names.sort()
-	logger.log(dedupeSorted(names.join('\n')))
+	logger.log(dedupeSorted(names).join('\n'))
 }
