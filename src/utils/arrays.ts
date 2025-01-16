@@ -2,7 +2,8 @@ export function symmetricDiff<X>(a: X[], b: X[]) {
 	return [a.filter((x) => !b.includes(x)), b.filter((x) => !a.includes(x))] as const
 }
 
-export function dedupeSorted<X>(xs: Iterable<X>) {
+export function dedupeSorted<X>(iter: Iterable<X>) {
+  const xs = Array.from(iter).sort()
 	let first = true
 	let last: X
 	const res: X[] = []

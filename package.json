@@ -6,7 +6,11 @@
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --packages=external --format=esm --outfile=dist/index.js",
     "dev": "esbuild src/index.ts --bundle --platform=node --packages=external --format=esm --outfile=dist/index.js --watch",
-    "test": "vitest"
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:lint": "eslint . --report-unused-disable-directives --max-warnings 0 --fix",
+    "test:types": "tsc --noEmit",
+    "format": "prettier --write ./src"
   },
   "keywords": [],
   "author": "Juliette Lamarche <juliette.lamarche.xyz@gmail.com> (https://github.com/prncss-xyz/)",

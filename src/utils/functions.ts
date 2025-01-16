@@ -1,4 +1,4 @@
-import { isFunction, } from '@constellar/core'
+import { isFunction } from '@constellar/core'
 
 export function opt<A, B>(cb: (a: A) => B | undefined) {
 	return function (a: A | undefined): B | undefined {
@@ -6,15 +6,23 @@ export function opt<A, B>(cb: (a: A) => B | undefined) {
 	}
 }
 
-export function promised<A, B>(cb: (a: A) => B | Promise<B>) {
-	return function (a: A | Promise<A>): Promise<B> {
-		return a instanceof Promise ? a.then(cb) : Promise.resolve(cb(a))
+export function flat<A, B>(cb: (a: A) => B[]) {
+	return function (a: A[]): B[] {
+		return a.flatMap(cb)
 	}
 }
 
-export function promisedAll<A, B>(cb: (a: A) => Promise<B>[]) {
-	return function (a: A | Promise<A>) {
-		return promised((a: A) => Promise.all(cb(a)))(a)
+export function promisedAll<A, B>(cb: (a: A) => Promise<B[]>) {
+	return async function (asp: Promise<A[]>): Promise<B[]> {
+		const as = await asp
+		const bs = await Promise.all(as.map(cb))
+		return bs.flat()
+	}
+}
+
+export function promised<A, B>(cb: (a: A) => B | Promise<B>) {
+	return function (a: Promise<A>): Promise<B> {
+		return a.then(cb)
 	}
 }
 

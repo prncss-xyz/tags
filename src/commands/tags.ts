@@ -1,3 +1,5 @@
+import { flow, pipe } from '@constellar/core'
+
 import { ResourceToEntries } from '../categories/Entry'
 import { getPathPrism } from '../categories/Entry/pathPrism'
 import { scanFile } from '../categories/Entry/scanFile'
@@ -7,7 +9,8 @@ import { NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
 import { logger } from '../logger'
 import { dedupeSorted, insertValue, removeValues } from '../utils/arrays'
-import { isoAssert } from '../utils/isoAssert'
+import { promised, promisedAll } from '../utils/functions'
+import { assertDefined } from '../utils/isoAssert'
 
 async function nameToTagOrCreate(name: string) {
 	const tagKeys = await NameToTags.get(name)
@@ -60,18 +63,23 @@ export async function tagGet(filePath: string) {
 		logger.error('file not found:', filePath)
 		return undefined
 	}
-	const resource = await Resources.get(entry.resource)
-	const names = (
-		await Promise.all(
-			fTags.view(resource).map(async (tagKey) => {
-				const tag = await Tags.get(tagKey)
-				isoAssert(tag !== undefined)
-				return tag
-			}),
-		)
+	const names = await flow(
+		Resources.get(entry.resource),
+		promised(fTags.view.bind(fTags)),
+		promisedAll(
+			pipe(
+				Promise.resolve.bind(Promise),
+				promised(Tags.get.bind(Tags)),
+				promised(
+					pipe(
+						assertDefined(),
+						(tag) => tag.name,
+						(x) => [x],
+					),
+				),
+			),
+		),
 	)
-		.map((tag) => tag.name)
-		.sort()
 	logger.log(dedupeSorted(names).join('\n'))
 }
 
@@ -82,13 +90,12 @@ export async function listResourcesByTag(tagName: string) {
 		logger.error(`tag ${tagName} not found`)
 		return
 	}
-	const resourceKeys = (
-		await Promise.all(tagKeys.map((tagKey) => TagsToResources.get(tagKey)))
-	).flat()
-	const fileKeys = (
-		await Promise.all(resourceKeys.map((resourceKey) => ResourceToEntries.get(resourceKey)))
-	).flat()
-	const filePaths = fileKeys.map((fileKey) => pathPrism.put(fileKey)).sort()
+	const filePaths = await flow(
+		Promise.resolve(tagKeys),
+		promisedAll(TagsToResources.get.bind(TagsToResources)),
+		promisedAll(ResourceToEntries.get.bind(ResourceToEntries)),
+		promisedAll(pipe(pathPrism.put.bind(pathPrism), (x) => Promise.resolve([x]))),
+	)
 	logger.log(dedupeSorted(filePaths).join('\n'))
 }
 
@@ -97,6 +104,5 @@ export async function listAllTags() {
 	for await (const [, { name }] of Tags.list()) {
 		names.push(name)
 	}
-	names.sort()
 	logger.log(dedupeSorted(names).join('\n'))
 }

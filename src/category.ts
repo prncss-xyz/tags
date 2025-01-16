@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { COptic, flow, Focus, id, pipe, PRISM } from '@constellar/core'
+import { COptic, Focus, id, pipe, PRISM } from '@constellar/core'
 import { Level } from 'level'
 
 import { db } from './db'
@@ -103,19 +103,17 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 		return new ManyToMany(prefix, this, optic.view.bind(optic), getDefault<Key>, isDefault, id)
 	}
 	async map(key: Key, up: (last: Value) => Value) {
-		await this.modify(key, flow(up, opt, promised))
+		await this.modify(key, (last) => Promise.resolve(opt(up)(last)))
 	}
 	modify(
 		key: Key,
 		up: ((last: undefined | Value) => Promise<undefined | Value>) | undefined | Value,
 	) {
-		const update = asyncUpdater(up)
-		const q = this.queue.get(key) ?? id
 		this.queue.set(
 			key,
 			pipe(
-				q,
-				promised(update),
+				this.queue.get(key) ?? ((x: undefined | Value) => Promise.resolve(x)),
+				promised(asyncUpdater(up)),
 				promised(opt((next) => (this.shouldRemove(key, next) ? undefined : next))),
 			),
 		)

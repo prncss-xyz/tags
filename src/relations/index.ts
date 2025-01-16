@@ -155,11 +155,6 @@ export function oneToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM>(
 		const { key, last, next } = event
 		const parentOut = getTargetIdResolved(last)
 		const parentIn = getTargetIdResolved(next)
-
-		console.log('oneToMany', key, last, next, parentIn, parentOut)
-		if (parentIn) console.log('parentIn', parentIn, key)
-		if (parentOut) console.log('parentOut', parentOut, key)
-
 		if (parentIn === parentOut) return
 		if (parentOut !== undefined) target.map(parentOut, resolved.update(removeValue(key)))
 		if (parentIn !== undefined) target.map(parentIn, resolved.update(insertValue(key)))
