@@ -1,4 +1,4 @@
-import { ResourceToEntry } from '../categories/Entry'
+import { ResourceToEntries } from '../categories/Entry'
 import { getPathPrism } from '../categories/Entry/pathPrism'
 import { scanFile } from '../categories/Entry/scanFile'
 import { walkDirOrFiles, walkList } from '../categories/Entry/walkDir'
@@ -86,7 +86,7 @@ export async function listResourcesByTag(tagName: string) {
 		await Promise.all(tagKeys.map((tagKey) => TagsToResources.get(tagKey)))
 	).flat()
 	const fileKeys = (
-		await Promise.all(resourceKeys.map((resourceKey) => ResourceToEntry.get(resourceKey)))
+		await Promise.all(resourceKeys.map((resourceKey) => ResourceToEntries.get(resourceKey)))
 	).flat()
 	const filePaths = fileKeys.map((fileKey) => pathPrism.put(fileKey)).sort()
 	logger.log(dedupeSorted(filePaths).join('\n'))

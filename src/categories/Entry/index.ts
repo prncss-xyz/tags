@@ -13,12 +13,13 @@ export const Entries = new Category<string, IEntry>('Entries')
 export const fResource = focus<IEntry>()(prop('resource'))
 export const fMtime = focus<IEntry>()(prop('mtime'))
 
-export const ResourceToEntry = Entries.oneToMany('ResourceToEntry', fResource)
-export const fDupe = focus<FamilyToValue<typeof ResourceToEntry>>()(
+export const ResourceToEntries = Entries.oneToMany('ResourceToEntries', fResource)
+const fNumber = focus<FamilyToValue<typeof ResourceToEntries>>()(
 	to((cs) => {
+		if (cs.length === 0) return 'unused'
 		if (cs.length > 1) return 'dupe'
 		return undefined
 	}),
 )
 
-export const DupeToResourceToEntry = ResourceToEntry.oneToMany('DupeToResourceToEntry', fDupe)
+export const NumberToResources = ResourceToEntries.oneToMany('NumberToResources', fNumber)

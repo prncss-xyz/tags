@@ -4,7 +4,6 @@ import { resolve } from 'node:path/posix'
 
 import { Entries, fMtime, fResource, IEntry } from '.'
 import { getConfig } from '../../config'
-import { logger } from '../../logger'
 import { calculateChecksum } from './checksum'
 import { getPathPrism } from './pathPrism'
 
@@ -21,10 +20,7 @@ export async function scanFile(filePath: string, mod = asyncIdentity<IEntry | un
 	const config = await getConfig()
 	const pathPrism = getPathPrism(config.dirs)
 	const resourceKey = pathPrism.view(filePath)
-	if (resourceKey === undefined) {
-		logger.log(`file ${filePath} is not in a managed directory`)
-		return undefined
-	}
+	if (resourceKey === undefined) return undefined
 	return await Entries.modify(
 		resourceKey,
 		asyncPipe(async (last) => {

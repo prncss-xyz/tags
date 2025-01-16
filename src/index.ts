@@ -3,6 +3,7 @@ import { program } from 'commander'
 import { scanDirs } from './categories/Entry/scanDirs'
 import { scanFile } from './categories/Entry/scanFile'
 import { Category } from './category'
+import { dupes } from './commands/dupes'
 import { exportData, importData } from './commands/export'
 import {
 	listAllTags,
@@ -17,6 +18,10 @@ import { reset } from './db'
 import { logger } from './logger'
 
 // TODO: tag-rm tag-mv
+
+program.command('dupes').action(async () => {
+	await dupes()
+})
 
 program.command('dump').action(async () => {
 	logger.log(await Category.dump())

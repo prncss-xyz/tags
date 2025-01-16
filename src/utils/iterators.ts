@@ -2,7 +2,6 @@ function isFail<X>(x: null | undefined | X): x is null | undefined {
 	return x === undefined || x === null
 }
 
-// TODO: make it work with async generators
 export async function zipCmp<X, Y>(
 	xs: AsyncIterable<X>,
 	ys: AsyncIterable<Y>,

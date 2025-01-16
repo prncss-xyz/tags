@@ -2,6 +2,7 @@ import { focus, iso } from '@constellar/core'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import path from 'path'
 
+import { Resources } from '../categories/Resource'
 import { categories } from '../category'
 import { getConfig } from '../config'
 import { logger } from '../logger'
@@ -30,6 +31,14 @@ export async function exportData() {
 	await mkdir(exp, { recursive: true })
 	for (const [prefix, category] of categories) {
 		if (category.index) continue
+		if (prefix === 'Entries') {
+			for await (const entry of category.list()) {
+				const resource = entry[1].resource as string
+				if (await Resources.has(resource))
+					await writeFile(path.join(exp, prefix), codec.put(entry), { flag: 'a' })
+			}
+			continue
+		}
 		for await (const entry of category.list()) {
 			await writeFile(path.join(exp, prefix), codec.put(entry), { flag: 'a' })
 		}

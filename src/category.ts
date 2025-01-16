@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { COptic, Focus, id, isFunction, PRISM } from '@constellar/core'
+import { COptic, flow, Focus, id, pipe, PRISM } from '@constellar/core'
 import { Level } from 'level'
 
 import { db } from './db'
 import { logger } from './logger'
 import { IFamily, manyToMany, NonRemove, oneToMany, oneToOne } from './relations'
 import { Init } from './utils/fromInit'
+import { asyncUpdater, opt, promised } from './utils/functions'
 import { isoAssert } from './utils/isoAssert'
 
 export const categories = new Map<string, Category<any, any>>()
@@ -36,6 +37,8 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 	shouldRemove: (key: Key, value: Value) => unknown
 	protected sublevel: Level<Key, Value>
 	protected subscriptions = new Set<(event: Event<Key, Value>) => void>()
+	private promises = new Map<Key, Promise<undefined | Value>>()
+	private queue = new Map<Key, (value: undefined | Value) => Promise<undefined | Value>>()
 	constructor(
 		protected prefix: string,
 		opts?: Opts<Key, Value>,
@@ -62,6 +65,9 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 	}
 	async get(key: Key): Promise<undefined | Value> {
 		return await this.sublevel.get(key)
+	}
+	async has(key: Key) {
+		return Boolean(await this.sublevel.get(key))
 	}
 	keys(
 		opts?: Partial<{
@@ -96,30 +102,47 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 	) {
 		return new ManyToMany(prefix, this, optic.view.bind(optic), getDefault<Key>, isDefault, id)
 	}
-	async map(key: Key, cb: (last: Value) => Value) {
-		await this.modify(key, async (l) => {
-			if (l === undefined) return undefined
-			return cb(l)
-		})
+	async map(key: Key, up: (last: Value) => Value) {
+		await this.modify(key, flow(up, opt, promised))
 	}
-	async modify(
+	modify(
 		key: Key,
 		up: ((last: undefined | Value) => Promise<undefined | Value>) | undefined | Value,
 	) {
-		const last = await this.get(key)
-		let next = isFunction(up) ? await up(last) : up
-		if (last === next) return last
-		if (next !== undefined && this.shouldRemove(key, next)) next = undefined
-		if (next === undefined) await this.sublevel.del(key)
-		else await this.sublevel.put(key, next)
-		this.subscriptions.forEach((cb) =>
-			cb({
-				key,
-				last,
-				next,
-			}),
+		const update = asyncUpdater(up)
+		const q = this.queue.get(key) ?? id
+		this.queue.set(
+			key,
+			pipe(
+				q,
+				promised(update),
+				promised(opt((next) => (this.shouldRemove(key, next) ? undefined : next))),
+			),
 		)
-		return next
+		const p =
+			this.promises.get(key) ??
+			new Promise((resolve) => {
+				setTimeout(async () => {
+					const q = this.queue.get(key)
+					isoAssert(q)
+					this.queue.delete(key)
+					this.promises.delete(key)
+					const last = await this.get(key)
+					const next = await q(last)
+					if (next === undefined) await this.sublevel.del(key)
+					else await this.sublevel.put(key, next)
+					this.subscriptions.forEach((cb) =>
+						cb({
+							key,
+							last,
+							next,
+						}),
+					)
+					resolve(next)
+				}, 0)
+			})
+		this.promises.set(key, p)
+		return p
 	}
 	oneToMany<TKey, Fail, Command, IS_PRISM>(
 		prefix: string,

@@ -1,4 +1,4 @@
-export function getDebouncer<T>(cb: (arg: T) => void, delay?: number) {
+export function getDebounced<T>(cb: (arg: T) => void, delay?: number) {
 	let handle: NodeJS.Timeout | number | string | undefined
 	let arg_: T
 	function eff() {
@@ -11,7 +11,7 @@ export function getDebouncer<T>(cb: (arg: T) => void, delay?: number) {
 	}
 }
 
-export function getDeduper<T>(cb: (arg: T) => void, delay?: number) {
+export function getDebouncedDeduped<T>(cb: (arg: T) => void, delay?: number) {
 	let handle: NodeJS.Timeout | number | string | undefined
 	let first = true
 	let arg_: T

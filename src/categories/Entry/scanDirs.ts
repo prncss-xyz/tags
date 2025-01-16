@@ -3,11 +3,11 @@ import { watch } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
-import { Entries } from '.'
+import { Entries, NumberToResources } from '.'
 import { getConfig } from '../../config'
 import { isoAssert } from '../../utils/isoAssert'
 import { zipCmp } from '../../utils/iterators'
-import { getDeduper } from '../../utils/time'
+import { getDebouncedDeduped } from '../../utils/time'
 import { cmpPath, getPathPrism } from './pathPrism'
 import { scanFile } from './scanFile'
 
@@ -53,22 +53,9 @@ function cmpEntry(a: string, b: string) {
 	return a < b ? -1 : a > b ? 1 : 0
 }
 
+const debounceDelay = 1000
+
 export async function scanDirs(w = false) {
-	// we setup the watcher first, as files can be touched before all notes have been scanned
-	if (w) {
-		const cb = getDeduper((filePath: string) => {
-			scanFile(filePath)
-		}, 1000)
-		const config = await getConfig()
-		for (const dir of Object.values(config.dirs)) {
-			watch(dir, { persistent: true, recursive: true }, (_event, filePath) => {
-				if (filePath === null) return
-				filePath = resolve(dir, filePath)
-				if (filePath.split('/').some((s) => s.startsWith('.'))) return
-				cb(filePath)
-			})
-		}
-	}
 	const pathPrism = getPathPrism((await getConfig()).dirs)
 	const removed: string[] = []
 	await zipCmp(iterateDirs(), Entries.keys(), cmpEntry, function (a, b) {
@@ -82,5 +69,30 @@ export async function scanDirs(w = false) {
 	for (const key of removed) {
 		await Entries.remove(key)
 	}
-	// TODO: remove checksums that are no longer in the filesystem
+	if (w) {
+		// We wait a little bit before removing unused entries to allow for renaming
+		Entries.subscribe((event) => {
+			if (event.next !== undefined) return
+			const last = event.last
+			isoAssert(last !== undefined)
+			setTimeout(async () => {
+				const unused = await NumberToResources.get('unused')
+				if (!unused.includes(last.resource)) return
+				Entries.remove(last.resource)
+			}, 10 * debounceDelay)
+		})
+		const cb = getDebouncedDeduped(async (filePath: string) => {
+			await scanFile(filePath)
+		}, debounceDelay)
+		const config = await getConfig()
+		for (const dir of Object.values(config.dirs)) {
+			watch(dir, { persistent: true, recursive: true }, (_event, filePath) => {
+				if (filePath === null) return
+				filePath = resolve(dir, filePath)
+				if (filePath.split('/').some((s) => s.startsWith('.'))) return
+				cb(filePath)
+			})
+		}
+	}
+	// TODO: remove entries that are no longer in the filesystem
 }
