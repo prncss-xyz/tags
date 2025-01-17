@@ -9,8 +9,8 @@ import { NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
 import { logger } from '../logger'
 import { dedupeSorted, insertValue, removeValues } from '../utils/arrays'
-import { promised, promisedAll } from '../utils/functions'
 import { assertDefined } from '../utils/isoAssert'
+import { arr, pro, pros } from '../utils/monads'
 
 async function nameToTagOrCreate(name: string) {
 	const tagKeys = await NameToTags.get(name)
@@ -65,18 +65,12 @@ export async function tagGet(filePath: string) {
 	}
 	const names = await flow(
 		Resources.get(entry.resource),
-		promised(fTags.view.bind(fTags)),
-		promisedAll(
+		pro.map(fTags.view.bind(fTags)),
+		pros.chain(
 			pipe(
-				Promise.resolve.bind(Promise),
-				promised(Tags.get.bind(Tags)),
-				promised(
-					pipe(
-						assertDefined(),
-						(tag) => tag.name,
-						(x) => [x],
-					),
-				),
+				pro.unit,
+				pro.chain(Tags.get.bind(Tags)),
+				pro.map(pipe(assertDefined(), (tag) => tag.name, arr.unit)),
 			),
 		),
 	)
@@ -91,10 +85,10 @@ export async function listResourcesByTag(tagName: string) {
 		return
 	}
 	const filePaths = await flow(
-		Promise.resolve(tagKeys),
-		promisedAll(TagsToResources.get.bind(TagsToResources)),
-		promisedAll(ResourceToEntries.get.bind(ResourceToEntries)),
-		promisedAll(pipe(pathPrism.put.bind(pathPrism), (x) => Promise.resolve([x]))),
+		pro.unit(tagKeys),
+		pros.chain(TagsToResources.get.bind(TagsToResources)),
+		pros.chain(ResourceToEntries.get.bind(ResourceToEntries)),
+		pros.chain(pipe(pathPrism.put.bind(pathPrism), (x) => Promise.resolve([x]))),
 	)
 	logger.log(dedupeSorted(filePaths).join('\n'))
 }

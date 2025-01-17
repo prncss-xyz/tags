@@ -6,8 +6,9 @@ import { db } from './db'
 import { logger } from './logger'
 import { IFamily, manyToMany, NonRemove, oneToMany, oneToOne } from './relations'
 import { Init } from './utils/fromInit'
-import { asyncUpdater, opt, promised } from './utils/functions'
+import { asyncUpdater } from './utils/functions'
 import { isoAssert } from './utils/isoAssert'
+import { opt, pro } from './utils/monads'
 
 export const categories = new Map<string, Category<any, any>>()
 
@@ -103,7 +104,7 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 		return new ManyToMany(prefix, this, optic.view.bind(optic), getDefault<Key>, isDefault, id)
 	}
 	async map(key: Key, up: (last: Value) => Value) {
-		await this.modify(key, (last) => Promise.resolve(opt(up)(last)))
+		await this.modify(key, (last) => Promise.resolve(opt.chain(up)(last)))
 	}
 	modify(
 		key: Key,
@@ -113,8 +114,8 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 			key,
 			pipe(
 				this.queue.get(key) ?? ((x: undefined | Value) => Promise.resolve(x)),
-				promised(asyncUpdater(up)),
-				promised(opt((next) => (this.shouldRemove(key, next) ? undefined : next))),
+				pro.chain(asyncUpdater(up)),
+				pro.map(opt.chain((next) => (this.shouldRemove(key, next) ? undefined : next))),
 			),
 		)
 		const p =
