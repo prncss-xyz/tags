@@ -11,13 +11,13 @@ export type UpdateEvent<Key, Value> = {
 	next: undefined | Value
 }
 
-export interface IFamily<Key, Value> {
+export interface ICategory<Key, Value> {
 	get: (key: Key) => Promise<undefined | Value>
 	map: (key: Key, modify: (t: Value) => Value) => Promise<void>
 	subscribe: (callback: (event: UpdateEvent<Key, Value>) => void) => void
 }
 
-export interface IFamilyPutRemove<Key, Value> extends IFamily<Key, Value> {
+export interface ICategoryPutRemove<Key, Value> extends ICategory<Key, Value> {
 	put: (key: Key, value: Value) => Promise<void>
 	remove: (key: Key) => Promise<void>
 }
@@ -25,21 +25,21 @@ export interface IFamilyPutRemove<Key, Value> extends IFamily<Key, Value> {
 export type NonRemove<T> = T extends typeof REMOVE ? never : T
 
 export function oneToOne<SValue, TValue, SKey, TKey, Fail, Command>(
-	source: IFamily<SKey, SValue>,
+	source: ICategory<SKey, SValue>,
 	getTargetId: Init<TKey | undefined, [SValue]>,
-	target: IFamily<TKey, TValue>,
+	target: ICategory<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, NonRemove<Command>, PRISM>,
 ): (t: TValue) => Fail | SKey
 export function oneToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM>(
-	source: IFamily<SKey, SValue>,
+	source: ICategory<SKey, SValue>,
 	getTargetId: Init<TKey | undefined, [SValue]>,
-	target: IFamilyPutRemove<TKey, TValue>,
+	target: ICategoryPutRemove<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, typeof REMOVE, IS_PRISM>,
 ): (t: TValue) => Fail | SKey
 export function oneToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command>(
-	source: IFamily<SKey, SValue>,
+	source: ICategory<SKey, SValue>,
 	getTargetId: Init<TKey | undefined, [SValue]>,
-	target: IFamily<TKey, TValue> | IFamilyPutRemove<TKey, TValue>,
+	target: ICategory<TKey, TValue> | ICategoryPutRemove<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, Command, IS_PRISM>,
 ) {
 	const resolved = focus<TValue>()(o)
@@ -71,21 +71,21 @@ export function oneToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command>(
 }
 
 export function manyToOne<SValue, TValue, SKey, TKey, Fail, Command>(
-	source: IFamily<SKey, SValue>,
+	source: ICategory<SKey, SValue>,
 	getTargetIds: Init<TKey[], [SValue]>,
-	target: IFamily<TKey, TValue> | IFamilyPutRemove<TKey, TValue>,
+	target: ICategory<TKey, TValue> | ICategoryPutRemove<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, NonRemove<Command>, PRISM>,
 ): (t: TValue) => Fail | SKey
 export function manyToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM>(
-	source: IFamily<SKey, SValue>,
+	source: ICategory<SKey, SValue>,
 	getTargetIds: Init<TKey[], [SValue]>,
-	target: IFamily<TKey, TValue> | IFamilyPutRemove<TKey, TValue>,
+	target: ICategory<TKey, TValue> | ICategoryPutRemove<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, typeof REMOVE, IS_PRISM>,
 ): (t: TValue) => Fail | SKey
 export function manyToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command>(
-	source: IFamily<SKey, SValue>,
+	source: ICategory<SKey, SValue>,
 	getTargetIds: Init<TKey[], [SValue]>,
-	target: IFamily<TKey, TValue> | IFamilyPutRemove<TKey, TValue>,
+	target: ICategory<TKey, TValue> | ICategoryPutRemove<TKey, TValue>,
 	o: Focus<SKey, TValue, Fail, Command, IS_PRISM>,
 ) {
 	const resolved = focus<TValue>()(o)
@@ -118,9 +118,9 @@ export function manyToOne<SValue, TValue, SKey, TKey, Fail, IS_PRISM, Command>(
 }
 
 export function manyToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM>(
-	source: IFamily<SKey, SValue>,
+	source: ICategory<SKey, SValue>,
 	getTargetIds: Init<TKey[], [SValue]>,
-	target: IFamily<TKey, TValue>,
+	target: ICategory<TKey, TValue>,
 	o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
 ) {
 	const resolved = focus<TValue>()(o)
@@ -141,9 +141,9 @@ export function manyToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM>(
 }
 
 export function oneToMany<SValue, TValue, SKey, TKey, Fail, Command, IS_PRISM>(
-	source: IFamily<SKey, SValue>,
+	source: ICategory<SKey, SValue>,
 	getTargetId: Init<TKey | undefined, [SValue]>,
-	target: IFamily<TKey, TValue>,
+	target: ICategory<TKey, TValue>,
 	o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
 ) {
 	const resolved = focus<TValue>()(o)

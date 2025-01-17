@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 
-export function calculateChecksum(filePath: string): Promise<string> {
+import { CategoryKey } from '../../category'
+
+export function calculateChecksum(filePath: string): Promise<CategoryKey<'Resources'>> {
 	return new Promise((resolve, reject) => {
 		const hash = createHash('md5')
 
@@ -17,7 +19,7 @@ export function calculateChecksum(filePath: string): Promise<string> {
 
 		stream.on('end', () => {
 			const checksum = hash.digest('base64')
-			resolve(checksum)
+			resolve(checksum as CategoryKey<'Resources'>)
 		})
 	})
 }

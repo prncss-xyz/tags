@@ -1,18 +1,18 @@
 import { focus, prop } from '@constellar/core'
 
-import { CategoryWithDefault } from '../category'
+import { categoryWithDefault, CategoryKey } from '../category'
+import { Tags } from './Tag'
 
 // key is the checksum
 export type IResource = {
-	tags: string[]
+	tags: CategoryKey<typeof Tags>[]
 }
 
-export const Resources = new CategoryWithDefault<string, IResource>(
-	'Resources',
+export const Resources = categoryWithDefault('Resources')<IResource>(
 	() => ({
 		tags: [],
 	}),
-	(_, value) => value.tags.length === 0,
+	(value) => value.tags.length === 0,
 )
 
 export const fTags = focus<IResource>()(prop('tags'))

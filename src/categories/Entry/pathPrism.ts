@@ -1,5 +1,7 @@
 import { focus, prism } from '@constellar/core'
 
+import { Entries } from '.'
+import {  CategoryKey } from '../../category'
 import { isoAssert } from '../../utils/isoAssert'
 
 const pathSep = '/'
@@ -18,13 +20,13 @@ export function getPathPrism(dirs: Record<string, string>) {
 		for (const [dir, head] of Object.entries(dirs)) {
 			if (rawPath.startsWith(head)) {
 				const tail = rawPath.slice(head.length + 1).split(pathSep)
-				return [dir, ...tail].map(encodeURIComponent).join(keySep)
+				return [dir, ...tail].map(encodeURIComponent).join(keySep) as CategoryKey<typeof Entries>
 			}
 		}
 		return undefined
 	}
-	function setter(rawPath: string) {
-		const [head, ...tail] = rawPath.split(keySep)
+	function setter(key: CategoryKey<typeof Entries>) {
+		const [head, ...tail] = key.split(keySep)
 		isoAssert(head !== undefined, 'path must start with a dir reference')
 		const base = dirs[head]
 		isoAssert(base !== undefined, `dir ${head} not found in dirs`)

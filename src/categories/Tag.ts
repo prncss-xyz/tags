@@ -1,13 +1,13 @@
 import { focus, prop } from '@constellar/core'
 
-import { CategoryWithCreate } from '../category'
+import { categoryWithCreate } from '../category'
 import { createUUID } from '../utils/uuid'
 
 export type ITag = {
 	name: string
 }
 
-export const Tags = new CategoryWithCreate<string, ITag, string>('Tags', (name) => [
+export const Tags = categoryWithCreate('Tags')<ITag, string>((name) => [
 	createUUID(),
 	{
 		name,

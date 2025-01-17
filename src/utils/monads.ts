@@ -13,7 +13,7 @@ export const opt = {
 			return cb(a)
 		}
 	},
-  unit: id
+	unit: id,
 }
 
 export const arr = {

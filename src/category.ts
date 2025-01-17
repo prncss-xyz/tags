@@ -4,13 +4,13 @@ import { Level } from 'level'
 
 import { db } from './db'
 import { logger } from './logger'
-import { IFamily, manyToMany, NonRemove, oneToMany, oneToOne } from './relations'
+import { ICategory, manyToMany, NonRemove, oneToMany, oneToOne } from './relations'
 import { Init } from './utils/fromInit'
 import { asyncUpdater } from './utils/functions'
 import { isoAssert } from './utils/isoAssert'
 import { opt, pro } from './utils/monads'
 
-export const categories = new Map<string, Category<any, any>>()
+export const categories = new Map<string, Category<any, any, any>>()
 
 function getDefault<T>(): T[] {
 	return []
@@ -19,30 +19,59 @@ function isDefault<T>(value: T[]): unknown {
 	return value.length === 0
 }
 
-export type Event<Key, Value> = { key: Key } & { last: undefined | Value; next: undefined | Value }
+export type Event<Key, Value> = { key: Key; last: undefined | Value; next: undefined | Value }
 
-type Opts<Key, Value> = Partial<{
+type Opts<Value, Key> = Partial<{
 	index: boolean
-	shouldRemove: (key: Key, value: Value) => unknown
+	shouldRemove: (value: Value, key: Key) => unknown
 }>
 
 function alwaysFalse() {
 	return false
 }
 
-export type FamilyToKey<Family> = Family extends IFamily<infer K, any> ? K : never
-export type FamilyToValue<Family> = Family extends IFamily<any, infer V> ? V : never
+export type CategoryKey<Category> = Category extends ICategory<infer K, any> ? K : never
+export type CategoryValue<Category> = Category extends ICategory<any, infer V> ? V : never
 
-export class Category<Key, Value> implements IFamily<Key, Value> {
+const categoryBrand = Symbol('categoryBrand')
+type BrandedKey<Prefix extends string> = string & { readonly [categoryBrand]: Prefix }
+
+export function category<Prefix extends string>(prefix: Prefix) {
+	return function <Value, Key = BrandedKey<Prefix>>(opts?: Opts<Value, Key>) {
+		return new Category<Value, Prefix, Key>(prefix, opts)
+	}
+}
+
+export function categoryWithDefault<Prefix extends string>(prefix: Prefix) {
+	return function <Value, Key = BrandedKey<Prefix>>(
+		defaultValue: (key: Key) => Value,
+		isDefault: (value: Value, key: Key) => unknown,
+		opts?: { index: boolean },
+	) {
+		return new CategoryWithDefault<Value, Prefix, Key>(prefix, defaultValue, isDefault, opts)
+	}
+}
+
+// TODO: infer type of Init and Value
+export function categoryWithCreate<Prefix extends string>(prefix: Prefix) {
+	return function <Value, Init, Key = BrandedKey<Prefix>>(
+		creator: (init: Init) => [string, Value],
+		opts?: Opts<Value, Key>,
+	) {
+		return new CategoryWithCreate<Value, Init, Prefix, Key>(prefix, creator, opts)
+	}
+}
+
+export class Category<Value, Prefix extends string, Key> implements ICategory<Key, Value> {
 	index: boolean
-	shouldRemove: (key: Key, value: Value) => unknown
+	shouldRemove: (value: Value, key: Key) => unknown
 	protected sublevel: Level<Key, Value>
 	protected subscriptions = new Set<(event: Event<Key, Value>) => void>()
 	private promises = new Map<Key, Promise<undefined | Value>>()
 	private queue = new Map<Key, (value: undefined | Value) => Promise<undefined | Value>>()
 	constructor(
-		protected prefix: string,
-		opts?: Opts<Key, Value>,
+		protected prefix: Prefix,
+		opts?: Opts<Value, Key>,
 	) {
 		this.index = opts?.index ?? false
 		this.shouldRemove = opts?.shouldRemove ?? alwaysFalse
@@ -115,7 +144,7 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 			pipe(
 				this.queue.get(key) ?? ((x: undefined | Value) => Promise.resolve(x)),
 				pro.chain(asyncUpdater(up)),
-				pro.map(opt.chain((next) => (this.shouldRemove(key, next) ? undefined : next))),
+				pro.map(opt.chain((next) => (this.shouldRemove(next, key) ? undefined : next))),
 			),
 		)
 		const p =
@@ -172,11 +201,15 @@ export class Category<Key, Value> implements IFamily<Key, Value> {
 	}
 }
 
-export class CategoryWithDefault<Key, Value> extends Category<Key, Value> {
+class CategoryWithDefault<Value, Prefix extends string, Key = BrandedKey<Prefix>> extends Category<
+	Value,
+	Prefix,
+	Key
+> {
 	constructor(
-		prefix: string,
+		prefix: Prefix,
 		private defaultValue: (key: Key) => Value,
-		isDefault: (key: Key, value: Value) => unknown,
+		isDefault: (value: Value, key: Key) => unknown,
 		opts?: { index: boolean },
 	) {
 		super(prefix, { ...opts, shouldRemove: isDefault })
@@ -186,16 +219,21 @@ export class CategoryWithDefault<Key, Value> extends Category<Key, Value> {
 	}
 }
 
-export class CategoryWithCreate<Key, Value, Init> extends Category<Key, Value> {
+class CategoryWithCreate<
+	Value,
+	Init,
+	Prefix extends string,
+	Key = BrandedKey<Prefix>,
+> extends Category<Value, Prefix, Key> {
 	constructor(
-		prefix: string,
-		private creator: (init: Init) => [Key, Value],
-		opts?: Opts<Key, Value>,
+		prefix: Prefix,
+		private creator: (init: Init) => [string, Value],
+		opts?: Opts<Value, Key>,
 	) {
 		super(prefix, opts)
 	}
 	async create(init: Init) {
-		const [key, next] = this.creator(init)
+		const [key, next] = this.creator(init) as [Key, Value]
 		const last = await this.get(key)
 		isoAssert(
 			last === undefined,
@@ -221,17 +259,17 @@ export class OneToMany<
 	Fail,
 	Command,
 	IS_PRISM,
-> extends CategoryWithDefault<TKey, TValue> {
+> extends CategoryWithDefault<TValue, string, TKey> {
 	back: (t: TValue) => SKey[]
 	constructor(
 		prefix: string,
-		source: IFamily<SKey, SValue>,
+		source: ICategory<SKey, SValue>,
 		getTargetId: Init<TKey | undefined, [SValue]>,
 		getDefault: () => TValue,
-		isDefault: (value: TValue) => unknown,
+		isDefault: (value: TValue, key: TKey) => unknown,
 		o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
 	) {
-		super(prefix, getDefault, (_key, value) => isDefault(value), { index: true })
+		super(prefix, getDefault, isDefault, { index: true })
 		this.back = oneToMany(source, getTargetId, this, o)
 	}
 }
@@ -244,26 +282,30 @@ export class ManyToMany<
 	Fail,
 	Command,
 	IS_PRISM,
-> extends CategoryWithDefault<TKey, TValue> {
+> extends CategoryWithDefault<TValue, string, TKey> {
 	back: (t: TValue) => Fail | SKey[]
 	constructor(
 		prefix: string,
-		source: IFamily<SKey, SValue>,
+		source: ICategory<SKey, SValue>,
 		getTargetIds: Init<TKey[], [SValue]>,
 		getDefault: () => TValue,
-		isDefault: (value: TValue) => unknown,
+		isDefault: (value: TValue, key: TKey) => unknown,
 		o: Focus<SKey[], TValue, Fail, Command, IS_PRISM>,
 	) {
-		super(prefix, getDefault, (_key, value) => isDefault(value), { index: true })
+		super(prefix, getDefault, isDefault, { index: true })
 		this.back = manyToMany(source, getTargetIds, this, o)
 	}
 }
 
-export class OneToOne<SValue, TValue, SKey, TKey, Fail, Command> extends Category<TKey, TValue> {
+export class OneToOne<SValue, TValue, SKey, TKey, Fail, Command> extends Category<
+	TValue,
+	string,
+	TKey
+> {
 	back: (t: TValue) => Fail | SKey
 	constructor(
 		prefix: string,
-		source: IFamily<SKey, SValue>,
+		source: ICategory<SKey, SValue>,
 		getTargetId: Init<TKey | undefined, [SValue]>,
 		o: Focus<SKey, TValue, Fail, NonRemove<Command>, PRISM>,
 	) {

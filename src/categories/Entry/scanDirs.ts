@@ -4,10 +4,12 @@ import { readdir } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 
 import { Entries, NumberToResources } from '.'
+import { CategoryKey } from '../../category'
 import { getConfig } from '../../config'
 import { isoAssert } from '../../utils/isoAssert'
 import { zipCmp } from '../../utils/iterators'
 import { getDebouncedDeduped } from '../../utils/time'
+import { Resources } from '../Resource'
 import { cmpPath, getPathPrism } from './pathPrism'
 import { scanFile } from './scanFile'
 
@@ -49,7 +51,7 @@ async function* iterateDirs() {
 	}
 }
 
-function cmpEntry(a: string, b: string) {
+function cmpEntry(a: CategoryKey<typeof Entries>, b: CategoryKey<typeof Entries>) {
 	return a < b ? -1 : a > b ? 1 : 0
 }
 
@@ -57,7 +59,7 @@ const debounceDelay = 1000
 
 export async function scanDirs(w = false) {
 	const pathPrism = getPathPrism((await getConfig()).dirs)
-	const removed: string[] = []
+	const removed: CategoryKey<typeof Entries>[] = []
 	await zipCmp(iterateDirs(), Entries.keys(), cmpEntry, function (a, b) {
 		if (a === undefined) {
 			isoAssert(b !== undefined)
@@ -78,7 +80,7 @@ export async function scanDirs(w = false) {
 			setTimeout(async () => {
 				const unused = await NumberToResources.get('unused')
 				if (!unused.includes(last.resource)) return
-				Entries.remove(last.resource)
+				Resources.remove(last.resource)
 			}, 10 * debounceDelay)
 		})
 		const cb = getDebouncedDeduped(async (filePath: string) => {
@@ -94,5 +96,4 @@ export async function scanDirs(w = false) {
 			})
 		}
 	}
-	// TODO: remove entries that are no longer in the filesystem
 }
