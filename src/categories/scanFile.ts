@@ -1,21 +1,14 @@
-import { flow } from '@constellar/core'
+import { flow, pipe } from '@constellar/core'
 import { stat } from 'node:fs/promises'
 import { resolve } from 'node:path/posix'
 
-import { Entries, fMtime, fResource, IEntry } from '.'
-import { getConfig } from '../../config'
-import { calculateChecksum } from './checksum'
-import { getPathPrism } from './pathPrism'
+import { getConfig } from '../config'
+import { pro } from '../utils/monads'
+import { Entries, fMtime, fResource, IEntry } from './Entry'
+import { getPathPrism } from './Entry/pathPrism'
+import { calculateChecksum } from './Resource/checksum'
 
-function asyncPipe<A, B, C>(f: (a: A) => Promise<B>, g: (b: B) => Promise<C>) {
-	return async (a: A) => await g(await f(a))
-}
-
-async function asyncIdentity<A>(a: A) {
-	return a
-}
-
-export async function scanFile(filePath: string, mod = asyncIdentity<IEntry | undefined>) {
+export async function scanFile(filePath: string, mod = pro.unit<IEntry | undefined>) {
 	filePath = resolve(filePath)
 	const config = await getConfig()
 	const pathPrism = getPathPrism(config.dirs)
@@ -23,7 +16,7 @@ export async function scanFile(filePath: string, mod = asyncIdentity<IEntry | un
 	if (resourceKey === undefined) return undefined
 	return await Entries.modify(
 		resourceKey,
-		asyncPipe(async (last) => {
+		pipe(async (last) => {
 			let mtime: number
 			try {
 				mtime = await stat(filePath).then((stat) => stat.mtimeMs)
@@ -39,6 +32,6 @@ export async function scanFile(filePath: string, mod = asyncIdentity<IEntry | un
 				return last
 			}
 			return flow(last, fMtime.update(mtime), fResource.update(await calculateChecksum(filePath)))
-		}, mod),
+		}, pro.chain(mod)),
 	)
 }

@@ -1,26 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { focus, Focus, isUndefined, PRISM, REMOVE } from '@constellar/core'
 
+import { ICategory, ICategoryPutRemove } from '../category'
 import { insertValue, removeValue, symmetricDiff } from '../utils/arrays'
 import { fromInit, Init } from '../utils/fromInit'
 import { isoAssert } from '../utils/isoAssert'
-
-export type UpdateEvent<Key, Value> = {
-	key: Key
-	last: undefined | Value
-	next: undefined | Value
-}
-
-export interface ICategory<Key, Value> {
-	get: (key: Key) => Promise<undefined | Value>
-	map: (key: Key, modify: (t: Value) => Value) => Promise<void>
-	subscribe: (callback: (event: UpdateEvent<Key, Value>) => void) => void
-}
-
-export interface ICategoryPutRemove<Key, Value> extends ICategory<Key, Value> {
-	put: (key: Key, value: Value) => Promise<void>
-	remove: (key: Key) => Promise<void>
-}
 
 export type NonRemove<T> = T extends typeof REMOVE ? never : T
 

@@ -2,17 +2,24 @@ import { focus, prop } from '@constellar/core'
 
 import { categoryWithCreate } from '../category'
 import { createUUID } from '../utils/uuid'
+import { ILamport, incLamport, initLamport, lamportMerge } from './Lamport'
 
-export type ITag = {
+export type ITag = ILamport & {
 	name: string
 }
 
-export const Tags = categoryWithCreate('Tags')<ITag, string>((name) => [
-	createUUID(),
+export const Tags = categoryWithCreate('Tags')<ITag, string>(
+	(name) => [
+		createUUID(),
+		initLamport({
+			name,
+		}),
+	],
 	{
-		name,
+		merge: lamportMerge,
+		rewrite: incLamport,
 	},
-])
+)
 
 export const fName = focus<ITag>()(prop('name'))
 

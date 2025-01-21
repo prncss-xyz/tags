@@ -3,7 +3,7 @@ import { focus, prop, to } from '@constellar/core'
 import { category, CategoryKey, CategoryValue } from '../../category'
 import { Resources } from '../Resource'
 
-// key is the processed path
+// encoded path is the key
 export type IEntry = {
 	mtime: number
 	resource: CategoryKey<typeof Resources>

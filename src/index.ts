@@ -1,7 +1,7 @@
 import { program } from 'commander'
 
-import { scanDirs } from './categories/Entry/scanDirs'
-import { scanFile } from './categories/Entry/scanFile'
+import { scanDirs } from './categories/scanDirs'
+import { scanFile } from './categories/scanFile'
 import { Category } from './category'
 import { dupes } from './commands/dupes'
 import { exportData, importData } from './commands/export'

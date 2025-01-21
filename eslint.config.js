@@ -24,6 +24,7 @@ export default tseslint.config({
 			{
 				cspell: {
 					words: [
+            'lamport',
 						'constellar',
 						'elems',
 						'Lamarche',

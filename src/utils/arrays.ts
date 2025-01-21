@@ -3,7 +3,7 @@ export function symmetricDiff<X>(a: X[], b: X[]) {
 }
 
 export function dedupeSorted<X>(iter: Iterable<X>) {
-  const xs = Array.from(iter).sort()
+	const xs = Array.from(iter).sort()
 	let first = true
 	let last: X
 	const res: X[] = []

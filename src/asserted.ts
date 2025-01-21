@@ -3,7 +3,7 @@ import { COptic, id, IOptic, isNever, NON_PRISM } from '@constellar/core'
 
 export function asserted<Part>() {
 	return function <Whole, Command, Fail, S>(o: IOptic<Part, Whole, Fail, Command, S>) {
-		if (!(o.getter && o.setter)) throw new Error("asserted does not work with traversals")
+		if (!(o.getter && o.setter)) throw new Error('asserted does not work with traversals')
 		const getter = (whole: Whole) => {
 			const part = o.getter!(whole)
 			if (o.isFailure(part)) throw new Error(`unexpected value: ${part}`)

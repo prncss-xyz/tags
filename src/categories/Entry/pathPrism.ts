@@ -1,7 +1,7 @@
 import { focus, prism } from '@constellar/core'
 
 import { Entries } from '.'
-import {  CategoryKey } from '../../category'
+import { CategoryKey } from '../../category'
 import { isoAssert } from '../../utils/isoAssert'
 
 const pathSep = '/'
