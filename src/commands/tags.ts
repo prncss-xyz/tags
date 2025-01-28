@@ -84,11 +84,14 @@ export async function listResourcesByTag(tagName: string) {
 
 	const filePaths = await flow(
 		NameToTags.get(tagName),
-		pro.map(arr.tapZero(() => logger.error('tag not found:', tagName))),
 		pros.chain(TagsToResources.get.bind(TagsToResources)),
 		pros.chain(ResourceToEntries.get.bind(ResourceToEntries)),
 		pros.chain(pipe(pathPrism.put.bind(pathPrism), pros.unit)),
 	)
+	if (filePaths.length === 0) {
+		logger.error(`no files found for tag: ${tagName}`)
+		return
+	}
 	logger.log(dedupeSorted(filePaths).join('\n'))
 }
 

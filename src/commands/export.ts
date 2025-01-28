@@ -2,7 +2,6 @@ import { focus, iso } from '@constellar/core'
 import { mkdir, writeFile } from 'fs/promises'
 import path from 'path'
 
-import { Lamport } from '../categories/Lamport'
 import { Resources } from '../categories/Resource'
 import { categories, CategoryKey } from '../category'
 import { getConfig } from '../config'
@@ -50,13 +49,8 @@ export async function exportData() {
 
 export async function importData(dir: string) {
 	dir = path.resolve(dir)
-	for await (const line of lines(path.join(dir, 'Lamport'))) {
-		const [key, value] = codec.view(line)
-		await Lamport.merge(key, value)
-	}
 	for (const [prefix, category] of categories) {
 		if (category.index) continue
-		if (prefix === 'Lamport') continue
 		for await (const line of lines(path.join(dir, prefix))) {
 			const [key, value] = codec.view(line)
 			await category.merge(key, value)

@@ -1,7 +1,7 @@
 import { focus, prop } from '@constellar/core'
 
 import { CategoryKey, categoryWithDefault } from '../../category'
-import { ILamport, incLamport, initLamport, lamportMerge } from '../Lamport'
+import { ILamport, initLamport, mergeLamport, updateLamport } from '../Lamport'
 import { Tags } from '../Tag'
 
 // checksum is the key
@@ -15,8 +15,8 @@ export const Resources = categoryWithDefault('Resources')<IResource>(
 			tags: [],
 		}),
 	{
-		merge: lamportMerge,
-		rewrite: incLamport,
+		merge: mergeLamport,
+		rewrite: updateLamport,
 	},
 )
 

@@ -46,7 +46,7 @@ export type Event<Key, Value> = { key: Key; last: undefined | Value; next: undef
 
 type Opts<Value, Key> = Partial<{
 	index: boolean
-	merge: (next: Value, last: Value) => Value
+	merge: (next: Value, last: Value) => Promise<Value>
 	rewrite: (next: Value, last: undefined | Value) => Promise<Value>
 	shouldRemove: (value: Value, key: Key) => unknown
 }>
@@ -91,7 +91,7 @@ export class Category<Value, Prefix extends string, Key> implements ICategory<Ke
 	shouldRemove: (value: Value, key: Key) => unknown
 	protected sublevel: Level<Key, Value>
 	protected subscriptions = new Set<(event: Event<Key, Value>) => void>()
-	private merger: (next: Value, last: Value) => Value
+	private merger: (next: Value, last: Value) => Promise<Value>
 	private promises = new Map<Key, Promise<undefined | Value>>()
 	private queue = new Map<Key, (value: undefined | Value) => Promise<undefined | Value>>()
 	private rewrite: (next: Value, last: undefined | Value) => Promise<Value>
@@ -102,7 +102,7 @@ export class Category<Value, Prefix extends string, Key> implements ICategory<Ke
 		this.index = opts?.index ?? false
 		this.shouldRemove = opts?.shouldRemove ?? alwaysFalse
 		this.rewrite = opts?.rewrite ?? pro.unit
-		this.merger = opts?.merge ?? id
+		this.merger = opts?.merge ?? pro.unit
 		isoAssert(!categories.has(prefix), `category ${prefix} already exists`)
 		categories.set(prefix, this)
 		//  the package do not provide types for sublevel

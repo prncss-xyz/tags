@@ -2,7 +2,7 @@ import { focus, prop } from '@constellar/core'
 import { createUUID } from '@prncss-xyz/utils'
 
 import { categoryWithCreate } from '../category'
-import { ILamport, incLamport, initLamport, lamportMerge } from './Lamport'
+import { ILamport, initLamport, mergeLamport, updateLamport } from './Lamport'
 
 export type ITag = ILamport & {
 	name: string
@@ -16,8 +16,8 @@ export const Tags = categoryWithCreate('Tags')<ITag, string>(
 		}),
 	],
 	{
-		merge: lamportMerge,
-		rewrite: incLamport,
+		merge: mergeLamport,
+		rewrite: updateLamport,
 	},
 )
 
