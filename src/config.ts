@@ -1,3 +1,4 @@
+import { isoAssert } from '@prncss-xyz/utils'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { xdgConfig } from 'xdg-basedir'
@@ -6,7 +7,6 @@ import { z } from 'zod'
 
 import { appName } from './appName'
 import { logger } from './logger'
-import { isoAssert } from './utils/isoAssert'
 
 const home = process.env.HOME
 

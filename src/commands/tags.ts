@@ -1,4 +1,5 @@
 import { flow, pipe } from '@constellar/core'
+import { arr, assertDefined, insertSorted, insertValue, pro, removeValues } from '@prncss-xyz/utils'
 
 import { ResourceToEntries } from '../categories/Entry'
 import { getPathPrism } from '../categories/Entry/pathPrism'
@@ -8,9 +9,9 @@ import { scanFile } from '../categories/scanFile'
 import { NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
 import { logger } from '../logger'
-import { dedupeSorted, insertValue, removeValues } from '../utils/arrays'
-import { assertDefined } from '../utils/isoAssert'
-import { arr, pro, pros } from '../utils/monads'
+import { dedupeSorted } from '../utils/arrays'
+import { accumulator } from '../utils/arrumulator'
+import { pros } from '../utils/monads'
 
 async function nameToTagOrCreate(name: string) {
 	const tagKeys = await NameToTags.get(name)
@@ -78,25 +79,25 @@ export async function tagGet(filePath: string) {
 }
 
 export async function listResourcesByTag(tagName: string) {
-	const pathPrism = getPathPrism((await getConfig()).dirs)
-	const tagKeys = await NameToTags.get(tagName)
-	if (tagKeys.length === 0) {
-		logger.error(`tag ${tagName} not found`)
-		return
-	}
+	const config = await getConfig()
+	const pathPrism = getPathPrism(config.dirs)
+
 	const filePaths = await flow(
-		pro.unit(tagKeys),
+		NameToTags.get(tagName),
+		pro.map(arr.tapZero(() => logger.error('tag not found:', tagName))),
 		pros.chain(TagsToResources.get.bind(TagsToResources)),
 		pros.chain(ResourceToEntries.get.bind(ResourceToEntries)),
-		pros.chain(pipe(pathPrism.put.bind(pathPrism), (x) => Promise.resolve([x]))),
+		pros.chain(pipe(pathPrism.put.bind(pathPrism), pros.unit)),
 	)
 	logger.log(dedupeSorted(filePaths).join('\n'))
 }
 
 export async function listAllTags() {
-	const names: string[] = []
+	const [up, res] = accumulator<string[]>([])
 	for await (const [, { name }] of Tags.list()) {
-		names.push(name)
+		up(insertSorted(name))
 	}
-	logger.log(dedupeSorted(names).join('\n'))
+	for (const name of res()) {
+		logger.log(name)
+	}
 }

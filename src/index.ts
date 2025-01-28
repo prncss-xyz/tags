@@ -63,7 +63,7 @@ program.command('file-ls <tag>').action(async (tag) => {
 	await listResourcesByTag(tag)
 })
 
-program.command('ls-tag').action(async () => {
+program.command('ls-tags').action(async () => {
 	await listAllTags()
 })
 

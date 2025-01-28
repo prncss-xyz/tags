@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { zipCmp } from './iterators'
+import { zipCmp } from './zpiCmp'
 
 function spy<X>() {
 	const res: [X, X][] = []

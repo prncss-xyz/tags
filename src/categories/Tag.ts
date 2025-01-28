@@ -1,7 +1,7 @@
 import { focus, prop } from '@constellar/core'
+import { createUUID } from '@prncss-xyz/utils'
 
 import { categoryWithCreate } from '../category'
-import { createUUID } from '../utils/uuid'
 import { ILamport, incLamport, initLamport, lamportMerge } from './Lamport'
 
 export type ITag = ILamport & {

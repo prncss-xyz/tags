@@ -1,9 +1,9 @@
 import { flow, pipe } from '@constellar/core'
+import { pro } from '@prncss-xyz/utils'
 import { stat } from 'node:fs/promises'
 import { resolve } from 'node:path/posix'
 
 import { getConfig } from '../config'
-import { pro } from '../utils/monads'
 import { Entries, fMtime, fResource, IEntry } from './Entry'
 import { getPathPrism } from './Entry/pathPrism'
 import { calculateChecksum } from './Resource/checksum'

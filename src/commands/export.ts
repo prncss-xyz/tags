@@ -1,5 +1,5 @@
 import { focus, iso } from '@constellar/core'
-import { mkdir, readFile, writeFile } from 'fs/promises'
+import { mkdir, writeFile } from 'fs/promises'
 import path from 'path'
 
 import { Lamport } from '../categories/Lamport'
@@ -7,6 +7,7 @@ import { Resources } from '../categories/Resource'
 import { categories, CategoryKey } from '../category'
 import { getConfig } from '../config'
 import { logger } from '../logger'
+import { lines } from '../utils/lines'
 
 // TODO: could be a zip file, continuous stream and BSON
 // TODO: could me more parallelized
@@ -49,16 +50,14 @@ export async function exportData() {
 
 export async function importData(dir: string) {
 	dir = path.resolve(dir)
-	const contents = await readFile(path.join(dir, 'Lamport'), { encoding: 'utf8' })
-	for (const line of contents.split('\n')) {
+	for await (const line of lines(path.join(dir, 'Lamport'))) {
 		const [key, value] = codec.view(line)
 		await Lamport.merge(key, value)
 	}
 	for (const [prefix, category] of categories) {
 		if (category.index) continue
 		if (prefix === 'Lamport') continue
-		const contents = await readFile(path.join(dir, prefix), { encoding: 'utf8' })
-		for (const line of contents.split('\n')) {
+		for await (const line of lines(path.join(dir, prefix))) {
 			const [key, value] = codec.view(line)
 			await category.merge(key, value)
 		}

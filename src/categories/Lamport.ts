@@ -1,21 +1,22 @@
-import { categoryWithDefault } from '../category'
-import { Branded, registerBrand } from '../utils/brand'
+import { brand } from '@prncss-xyz/utils'
 
-registerBrand('Lamport')
-export type TLamport = Branded<number, 'Lamport'>
+import { categoryWithDefault } from '../category'
+
+const lamport = brand('Lamport')
+export type TLamport = number & ReturnType<typeof lamport>
 
 export const Lamport = categoryWithDefault('Lamport')<TLamport, 'singleton'>(() => 0 as TLamport, {
-	merge: (next, last) => Math.max(next, last) as TLamport,
+	merge: (next, last) => lamport(Math.max(next, last)),
 })
 
 export type ILamport = { lamport: TLamport }
 
 function inc(x: TLamport) {
-	return (x + 1) as TLamport
+	return lamport(x + 1)
 }
 
 export function initLamport<T>(v: T): ILamport & T {
-	return { ...v, lamport: 0 as TLamport }
+	return { ...v, lamport: lamport(0) }
 }
 
 export async function incLamport<T>(v: ILamport & T) {
