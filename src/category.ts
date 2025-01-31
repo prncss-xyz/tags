@@ -76,6 +76,15 @@ export function categoryWithDefault<Prefix extends string>(prefix: Prefix) {
 	}
 }
 
+export function categoryWithGenerate<Prefix extends string>(prefix: Prefix) {
+	return function <Value, Key = BrandedKey<Prefix>>(
+		generate: (key: Key) => Value,
+		opts?: Opts<Value, Key>,
+	) {
+		return new CategoryWithGenerate<Value, Prefix, Key>(prefix, generate, opts)
+	}
+}
+
 // TODO: infer type of Init and Value
 export function categoryWithCreate<Prefix extends string>(prefix: Prefix) {
 	return function <Value, Init, Key = BrandedKey<Prefix>>(
@@ -86,7 +95,7 @@ export function categoryWithCreate<Prefix extends string>(prefix: Prefix) {
 	}
 }
 
-export class Category<Value, Prefix extends string, Key> implements ICategory<Key, Value> {
+export class Category<Value, Name extends string, Key> implements ICategory<Key, Value> {
 	index: boolean
 	shouldRemove: (value: Value, key: Key) => unknown
 	protected sublevel: Level<Key, Value>
@@ -96,22 +105,22 @@ export class Category<Value, Prefix extends string, Key> implements ICategory<Ke
 	private queue = new Map<Key, (value: undefined | Value) => Promise<undefined | Value>>()
 	private rewrite: (next: Value, last: undefined | Value) => Promise<Value>
 	constructor(
-		protected prefix: Prefix,
+		public readonly name: Name,
 		opts?: Opts<Value, Key>,
 	) {
 		this.index = opts?.index ?? false
 		this.shouldRemove = opts?.shouldRemove ?? alwaysFalse
 		this.rewrite = opts?.rewrite ?? pro.unit
 		this.merger = opts?.merge ?? pro.unit
-		isoAssert(!categories.has(prefix), `category ${prefix} already exists`)
-		categories.set(prefix, this)
+		isoAssert(!categories.has(name), `category ${name} already exists`)
+		categories.set(name, this)
 		//  the package do not provide types for sublevel
-		this.sublevel = db.sublevel<Key, Value>(prefix, { valueEncoding: 'json' }) as any
+		this.sublevel = db.sublevel<Key, Value>(name, { valueEncoding: 'json' }) as any
 	}
 	static async dump() {
 		for (const [prefix, category] of categories.entries()) {
 			logger.log(prefix)
-			for await (const entry of category.sublevel.iterator()) logger.log(entry)
+			for await (const entry of category.sublevel.iterator()) logger.log(JSON.stringify(entry))
 		}
 	}
 	static async export(write: (prefix: string) => (key: unknown, value: unknown) => Promise<void>) {
@@ -263,6 +272,36 @@ class CategoryWithDefault<Value, Prefix extends string, Key = BrandedKey<Prefix>
 	}
 }
 
+class CategoryWithGenerate<Value, Prefix extends string, Key = BrandedKey<Prefix>> extends Category<
+	Value,
+	Prefix,
+	Key
+> {
+	constructor(
+		prefix: Prefix,
+		private generate: (key: Key) => Value,
+		opts?: Opts<Value, Key>,
+	) {
+		super(prefix, opts)
+	}
+	async get(key: Key): Promise<Value> {
+		const last = await this.sublevel.get(key)
+		if (last !== undefined) return last
+		const next = this.generate(key)
+		await this.sublevel.put(key, next)
+		return next
+	}
+	async map(key: Key, up: (last: Value) => Value): Promise<Value> {
+		return super.map(key, up) as Promise<Value>
+	}
+	async modify(
+		key: Key,
+		up: ((last: undefined | Value) => Promise<undefined | Value>) | undefined | Value,
+	): Promise<Value> {
+		return super.modify(key, up) as Promise<Value>
+	}
+}
+
 class CategoryWithCreate<
 	Value,
 	Init,
@@ -281,7 +320,7 @@ class CategoryWithCreate<
 		const last = await this.get(key)
 		isoAssert(
 			last === undefined,
-			`key '${key}' already exists for category ${this.prefix} (init = ${init})`,
+			`key '${key}' already exists for category ${this.name} (init = ${init})`,
 		)
 		await this.sublevel.put(key, next)
 		this.subscriptions.forEach((cb) =>

@@ -1,12 +1,13 @@
 import { flow, pipe } from '@constellar/core'
-import { arr, assertDefined, insertSorted, insertValue, pro, removeValues } from '@prncss-xyz/utils'
+import { arr, insertSorted, insertValue, join, pro, removeValues, sort } from '@prncss-xyz/utils'
 
 import { ResourceToEntries } from '../categories/Entry'
 import { getPathPrism } from '../categories/Entry/pathPrism'
 import { walkDirOrFiles, walkList } from '../categories/Entry/walkDir'
+import { Lamport } from '../categories/Lamport'
 import { fTags, Resources, TagsToResources } from '../categories/Resource'
 import { scanFile } from '../categories/scanFile'
-import { NameToTags, Tags } from '../categories/Tag'
+import { fName, NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
 import { logger } from '../logger'
 import { dedupeSorted } from '../utils/arrays'
@@ -29,7 +30,11 @@ export async function tagAddList(name: string, filePaths: string[]) {
 				logger.error('file not found:', filePath)
 				return undefined
 			}
-			await Resources.map(entry.resource, fTags.update(insertValue(tagKey)))
+			const lamport = await Lamport.get('singleton')
+			await Resources.map(
+				entry.resource,
+				fTags(entry.resource, lamport).update(insertValue(tagKey)),
+			)
 		})
 	}
 }
@@ -42,7 +47,11 @@ export async function tagDel(name: string, filePaths: string[]) {
 			logger.error('file not found:', filePath)
 			return undefined
 		}
-		await Resources.map(entry.resource, fTags.update(removeValues(tagKeys)))
+		const lamport = await Lamport.get('singleton')
+		await Resources.map(
+			entry.resource,
+			fTags(entry.resource, lamport).update(removeValues(tagKeys)),
+		)
 	})
 }
 
@@ -54,7 +63,8 @@ export async function tagAdd(name: string, filePaths: string[]) {
 			logger.error('file not found:', filePath)
 			return undefined
 		}
-		await Resources.map(entry.resource, fTags.update(insertValue(tagKey)))
+		const lamport = await Lamport.get('singleton')
+		await Resources.map(entry.resource, fTags(entry.resource, lamport).update(insertValue(tagKey)))
 	})
 }
 
@@ -64,41 +74,46 @@ export async function tagGet(filePath: string) {
 		logger.error('file not found:', filePath)
 		return undefined
 	}
-	const names = await flow(
+	await flow(
 		Resources.get(entry.resource),
-		pro.map(fTags.view.bind(fTags)),
+		pro.map((v) => fTags().view(v)),
 		pros.chain(
 			pipe(
 				pro.unit,
 				pro.chain(Tags.get.bind(Tags)),
-				pro.map(pipe(assertDefined(), (tag) => tag.name, arr.unit)),
+				pro.map((tag) => fName().view(tag!)),
+				pro.map(arr.unit),
+			),
+		),
+		pro.map(
+			pipe(
+				arr.tapZero(() => logger.error(`no tags found for file: ${filePath}`)),
+				sort(),
+				dedupeSorted,
+				join('\n'),
+				logger.log,
 			),
 		),
 	)
-	logger.log(dedupeSorted(names).join('\n'))
 }
 
 export async function listResourcesByTag(tagName: string) {
 	const config = await getConfig()
 	const pathPrism = getPathPrism(config.dirs)
-
-	const filePaths = await flow(
+	flow(
 		NameToTags.get(tagName),
 		pros.chain(TagsToResources.get.bind(TagsToResources)),
 		pros.chain(ResourceToEntries.get.bind(ResourceToEntries)),
 		pros.chain(pipe(pathPrism.put.bind(pathPrism), pros.unit)),
+		pros.tapZero(() => logger.error(`no files found for tag: ${tagName}`)),
+		pro.map(pipe(sort(), dedupeSorted, join('\n'), logger.log)),
 	)
-	if (filePaths.length === 0) {
-		logger.error(`no files found for tag: ${tagName}`)
-		return
-	}
-	logger.log(dedupeSorted(filePaths).join('\n'))
 }
 
 export async function listAllTags() {
 	const [up, res] = accumulator<string[]>([])
-	for await (const [, { name }] of Tags.list()) {
-		up(insertSorted(name))
+	for await (const [, entry] of Tags.list()) {
+		up(insertSorted(fName().view(entry)))
 	}
 	for (const name of res()) {
 		logger.log(name)

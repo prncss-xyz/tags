@@ -1,5 +1,6 @@
 import { program } from 'commander'
 
+import { sync } from './categories/Persistance'
 import { scanDirs } from './categories/scanDirs'
 import { scanFile } from './categories/scanFile'
 import { Category } from './category'
@@ -24,7 +25,7 @@ program.command('dupes').action(async () => {
 })
 
 program.command('dump').action(async () => {
-	logger.log(await Category.dump())
+	await Category.dump()
 })
 
 program.command('watch').action(async () => {
@@ -33,6 +34,10 @@ program.command('watch').action(async () => {
 
 program.command('scan').action(async () => {
 	await scanDirs()
+})
+
+program.command('sync').action(async () => {
+	await sync()
 })
 
 program.command('scan-file <filename>').action(async (filename) => {

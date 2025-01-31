@@ -1,13 +1,15 @@
 export function dedupeSorted<X>(iter: Iterable<X>) {
-	const xs = Array.from(iter).sort()
 	let first = true
 	let last: X
 	const res: X[] = []
-	for (const next of xs) {
-		if (!first && Object.is(last!, next)) continue
+	for (const next of iter) {
+		if (first) {
+			first = false
+		} else {
+			if (Object.is(next, last!)) continue
+		}
 		res.push(next)
 		last = next
-		first = false
 	}
 	return res
 }

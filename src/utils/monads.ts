@@ -9,6 +9,14 @@ export const pros = {
 			return asp.then((as) => as.map(cb))
 		}
 	},
+	tapZero<T>(cb: () => void) {
+		return function (asp: Promise<T[]>) {
+			return asp.then((as) => {
+				if (as.length === 0) cb()
+				return as
+			})
+		}
+	},
 	unit<A>(a: A) {
 		return Promise.resolve([a])
 	},

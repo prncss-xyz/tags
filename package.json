@@ -6,7 +6,7 @@
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --packages=external --format=esm --outfile=dist/index.js",
     "dev": "esbuild src/index.ts --bundle --platform=node --packages=external --format=esm --outfile=dist/index.js --watch",
-    "test": "vitest",
+    "dev:test": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:lint": "eslint . --report-unused-disable-directives --max-warnings 0 --fix",
     "test:types": "tsc --noEmit",
@@ -18,7 +18,7 @@
   "type": "module",
   "dependencies": {
     "@constellar/core": "^2.4.2",
-    "@prncss-xyz/utils": "^0.8.0",
+    "@prncss-xyz/utils": "^0.10.0",
     "commander": "^13.0.0",
     "esbuild": "^0.24.2",
     "level": "^9.0.0",
