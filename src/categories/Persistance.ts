@@ -6,19 +6,13 @@ import { z } from 'zod'
 const ext = '.dump'
 
 import { getDeviceId } from '../categories/deviceId'
-import {
-	lamportZero,
-	mergeWithPath,
-	notifyMaxLamport,
-	TLamport,
-	toLamport,
-} from '../categories/Lamport'
+import { mergeWithPath, notifyUsedLamport, TLamport, toLamport } from '../categories/Lamport'
 import { categories, categoryWithDefault } from '../category'
 import { getConfig } from '../config'
 import { logger } from '../logger'
 import { lines } from '../utils/lines'
 
-const Persistence = categoryWithDefault('Persistence')<TLamport, string>(() => lamportZero, {
+const Persistence = categoryWithDefault('Persistence')<TLamport, string>(() => toLamport(0), {
 	index: true,
 })
 
@@ -58,12 +52,10 @@ export async function notify(
 	payload: unknown,
 ) {
 	const filePath = await filePathPromise
-	const nextLamport = toLamport(lamport + 1)
-	await notifyMaxLamport(nextLamport)
 	if (!filePath) return
 	await writeFile(
 		filePath,
-		codec.put({ category, key, lamport: nextLamport, path, payload } satisfies Entry) + '\n',
+		codec.put({ category, key, lamport, path, payload } satisfies Entry) + '\n',
 		{
 			flag: 'a',
 		},
@@ -84,7 +76,7 @@ async function syncId(filePath: string, deviceId: string) {
 			return
 		}
 		await category.modify(entry.key, (local: unknown) =>
-			mergeWithPath(prioritizeLocal, notifyMaxLamport, local, entry.path, {
+			mergeWithPath(prioritizeLocal, notifyUsedLamport, local, entry.path, {
 				lamport: entry.lamport,
 				payload: entry.payload,
 			}),

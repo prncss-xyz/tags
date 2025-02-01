@@ -6,7 +6,11 @@ import { xdgData } from 'xdg-basedir'
 import { appName } from './appName'
 
 isoAssert(xdgData)
-const dbPath = path.join(xdgData, appName, 'db')
+const dbPath = path.join(
+	process.env.TEST === 'TEST' ? `/tmp/${appName}/db` : xdgData,
+	appName,
+	'db',
+)
 export const db = new Level<unknown, unknown>(dbPath)
 
 export function reset() {

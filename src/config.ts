@@ -42,8 +42,8 @@ const testConfig: z.infer<typeof ConfigSchema> = {
 	dirs: {
 		downloads: 'Downloads',
 	},
-	export: '/tmp/tags/export',
-	feed: '/tmp/tags/feed',
+	export: `/tmp/${appName}/export`,
+	feed: `/tmp/${appName}/feed`,
 }
 
 export function getConfig() {

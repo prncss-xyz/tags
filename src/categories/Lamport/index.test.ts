@@ -1,7 +1,7 @@
 import { focus } from '@constellar/core'
 import { describe, expect, expectTypeOf, test } from 'vitest'
 
-import { initLamportObj, lamportObjLens, lamportZero, recordToSet, TLamport } from '../Lamport'
+import { initLamportObj, lamportObjLens, recordToSet, TLamport, toLamport } from '../Lamport'
 
 describe('initObjLamport', () => {
 	const t = { a: 1, b: 2 }
@@ -23,7 +23,7 @@ describe('lamportObjLens', () => {
 		function notify(k: string, v: unknown) {
 			ups.push([k, v])
 		}
-		const f = focus<typeof l>()(lamportObjLens(lamportZero, notify))
+		const f = focus<typeof l>()(lamportObjLens(toLamport(0), notify))
 		expect(f.view(l)).toEqual(t)
 	})
 	test('setter, upload lamport only on change values', () => {

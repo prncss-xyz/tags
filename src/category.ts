@@ -249,6 +249,18 @@ export class Category<Value, Name extends string, Key> implements ICategory<Key,
 		this.subscriptions.add(cb)
 		return () => this.subscriptions.delete(cb)
 	}
+	values(
+		opts?: Partial<{
+			gt: Key
+			gte: Key
+			limit: number
+			lt: Key
+			lte: Key
+			reverse: boolean
+		}>,
+	) {
+		return this.sublevel.values(opts ?? {})
+	}
 }
 
 class CategoryWithDefault<Value, Prefix extends string, Key = BrandedKey<Prefix>> extends Category<

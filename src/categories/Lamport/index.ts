@@ -5,17 +5,17 @@ import { brand, collectIndexed, filter, map, objSink, sortedSink } from '@prncss
 import { categoryWithDefault } from '../../category'
 import { adjustPath } from './utils'
 
-export const toLamport = brand('Lamport')
+const toLamport_ = brand('Lamport')
+export const toLamport = (v: number) => toLamport_(v)
 export type TLamport = number & ReturnType<typeof toLamport>
 
-export const lamportZero: TLamport = toLamport(0)
-
-export const Lamport = categoryWithDefault('Lamport')<TLamport, 'singleton'>(() => lamportZero, {
+export const Lamport = categoryWithDefault('Lamport')<TLamport, 'singleton'>(() => toLamport(0), {
 	index: true,
 })
 
-export function notifyMaxLamport(max: TLamport) {
-	return Lamport.merge('singleton', max)
+// TODO: optimistic update
+export function notifyUsedLamport(lamport: TLamport) {
+	return Lamport.merge('singleton', toLamport(lamport + 1))
 }
 
 function mergeLamportValue<T>(
@@ -59,7 +59,8 @@ export async function updateLamport<T>(next: T) {
 
 export type LamportValue<T> = { lamport: TLamport; payload: T }
 
-export function initLamportValue<T>(payload: T) {
+export function initLamportValue<T>(payload: T, notify?: ((v: T) => void) | undefined) {
+	if (notify) notify(payload)
 	return { lamport: toLamport(0), payload }
 }
 
@@ -78,10 +79,13 @@ export type LamportObject<O extends Record<string, unknown>> = Prettify<{
 	[K in keyof O]: { lamport: TLamport; payload: O[K] }
 }>
 
-export function initLamportObj<O extends Record<string, unknown>>(value: O): LamportObject<O> {
+export function initLamportObj<O extends Record<string, unknown>>(
+	value: O,
+	notify?: ((k: keyof O, v: unknown) => void) | undefined,
+): LamportObject<O> {
 	return collectIndexed(
 		Object.entries(value),
-		map((v) => initLamportValue(v)),
+		map((v, index) => initLamportValue(v, notify ? (v: unknown) => notify(index, v) : undefined)),
 	)(objSink()) as any
 }
 
@@ -105,6 +109,7 @@ export function lamportObjLens<O extends Record<PropertyKey, unknown>>(
 					res[k] = { lamport, payload: v }
 				}
 			}
+			if (dirty) notifyUsedLamport(lamport)
 			return dirty ? res : whole
 		},
 	})

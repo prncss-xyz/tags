@@ -23,7 +23,9 @@ import { fName, NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
 import { logger } from '../logger'
 
+// TODO: notify
 async function nameToTagOrCreate(name: string) {
+	const lamport = await Lamport.get('singleton')
 	return flow(
 		name,
 		bind(NameToTags, 'get'),
@@ -38,7 +40,7 @@ export async function tagAddList(name: string, filePaths: string[]) {
 	await asyncCollect(
 		flow(
 			filePaths,
-			asyncArr.chain((x) => walkList(x)),
+			asyncArr.chain(walkList),
 			asyncArr.map(scanFile),
 			asyncArr.map(
 				opt.map((entry) =>
@@ -93,12 +95,13 @@ export async function tagGet(filePath: string) {
 	}
 	const res = await flow(
 		Resources.get(entry.resource),
-		pro.map((v) => fTags().view(v)),
+		pro.map(bind(fTags(), 'view')),
 		asyncArr.chain(
 			pipe(
 				pro.unit,
 				pro.chain(bind(Tags, 'get')),
-				pro.map((tag) => fName().view(tag!)),
+				pro.map(assertDefined()),
+				pro.map(bind(fName(), 'view')),
 				pro.map(arr.unit),
 			),
 		),
@@ -130,8 +133,8 @@ export async function listResourcesByTag(tagName: string) {
 
 export async function listAllTags() {
 	const res = await flow(
-		Tags.list(),
-		asyncArr.map(([, entry]) => fName().view(entry)),
+		Tags.values(),
+		asyncArr.map(bind(fName(), 'view')),
 		asyncArr.collect(sortedSink()),
 	)
 	if (res.length === 0) {

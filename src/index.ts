@@ -1,4 +1,4 @@
-import { program } from 'commander'
+import { program } from '@commander-js/extra-typings'
 
 import { sync } from './categories/Persistance'
 import { scanDirs } from './categories/scanDirs'

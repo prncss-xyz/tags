@@ -1,7 +1,13 @@
 import { focus, pipe, prop } from '@constellar/core'
 
 import { CategoryKey, categoryWithDefault } from '../../category'
-import { initLamportObj, LamportObject, lamportObjLens, lamportZero, recordToSet } from '../Lamport'
+import {
+	initLamportObj,
+	LamportObject,
+	lamportObjLens,
+	recordToSet,
+	toLamport,
+} from '../Lamport'
 import { notify } from '../Persistance'
 import { Tags } from '../Tag'
 
@@ -17,7 +23,7 @@ export const Resources = categoryWithDefault('Resources')<IResource>(() => ({
 }))
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const fTags = (key: CategoryKey<typeof Resources> = '' as any, lamport = lamportZero) =>
+export const fTags = (key: CategoryKey<typeof Resources> = '' as any, lamport = toLamport(0)) =>
 	focus<IResource>()(
 		pipe(
 			prop('tags'),
