@@ -83,11 +83,15 @@ program
 program
 	.command('tag-ls')
 	.argument('[tag]')
+	.option('-n, --negative <negative>')
 	.option('-s', '--shuffle')
-	.action(async (tag, { s }) => {
-		if (tag === undefined) return await listAllTags(s)
-		await listResourcesByTag(tag, s)
+	.action(async (tag, { negative, s }) => {
+		await listResourcesByTag(tag, negative, s)
 	})
+
+program.command('tag-all').action(async () => {
+	await listAllTags()
+})
 
 program.command('reset').action(async () => {
 	await reset()

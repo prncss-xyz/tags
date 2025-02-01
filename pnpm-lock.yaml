@@ -15,8 +15,8 @@ importers:
         specifier: ^2.4.2
         version: 2.4.2
       '@prncss-xyz/utils':
-        specifier: ^0.19.3
-        version: 0.19.3(@constellar/core@2.4.2)
+        specifier: ^0.20.0
+        version: 0.20.0(@constellar/core@2.4.2)
       commander:
         specifier: ^13.1.0
         version: 13.1.0
@@ -26,6 +26,9 @@ importers:
       level:
         specifier: ^9.0.0
         version: 9.0.0
+      minimatch:
+        specifier: ^10.0.1
+        version: 10.0.1
       nanoid:
         specifier: ^5.0.9
         version: 5.0.9
@@ -518,8 +521,8 @@ packages:
     resolution: {integrity: sha512-cq8o4cWH0ibXh9VGi5P20Tu9XF/0fFXl9EUinr9QfTM7a7p0oTA4iJRCQWppXR1Pg8dSM0UCItCkPwsk9qWWYA==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
 
-  '@prncss-xyz/utils@0.19.3':
-    resolution: {integrity: sha512-pwVCribuayxgFZ3eHeInAjWFgkNogwz8IiP99xNseQ2RuiJFwN/CRVSBEh3MBXbNsj934vVcmYv9NnSDuZ+8WQ==}
+  '@prncss-xyz/utils@0.20.0':
+    resolution: {integrity: sha512-d7VZ/DbklHyck11h5yCNjQglfvI3BiOdbyjhkd5mgWKHeXPQjVvUEsIOZK2p++BJcbwSE3HIQ4Yqs1hevM94JQ==}
     peerDependencies:
       '@constellar/core': ^2.4.2
 
@@ -1106,6 +1109,10 @@ packages:
   micromatch@4.0.8:
     resolution: {integrity: sha512-PXwfBhYu0hBCPw8Dn0E+WDYb7af3dSLVWKi3HGv84IdF4TyFoC0ysxFd0Goxw7nSv4T/PzEJQxsYsEiFCKo2BA==}
     engines: {node: '>=8.6'}
+
+  minimatch@10.0.1:
+    resolution: {integrity: sha512-ethXTt3SGGR+95gudmqJ1eNhRO7eGEGIgYA9vnPatK4/etz2MEVDno5GMCibdMTuBMyElzIlgxMna3K94XDIDQ==}
+    engines: {node: 20 || >=22}
 
   minimatch@3.1.2:
     resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
@@ -1789,7 +1796,7 @@ snapshots:
 
   '@pkgr/core@0.1.1': {}
 
-  '@prncss-xyz/utils@0.19.3(@constellar/core@2.4.2)':
+  '@prncss-xyz/utils@0.20.0(@constellar/core@2.4.2)':
     dependencies:
       '@constellar/core': 2.4.2
       nanoid: 5.0.9
@@ -2424,6 +2431,10 @@ snapshots:
     dependencies:
       braces: 3.0.3
       picomatch: 2.3.1
+
+  minimatch@10.0.1:
+    dependencies:
+      brace-expansion: 2.0.1
 
   minimatch@3.1.2:
     dependencies:

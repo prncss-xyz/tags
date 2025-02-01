@@ -1,4 +1,4 @@
-import { flow, id, insert, pipe } from '@constellar/core'
+import { flow, id, pipe } from '@constellar/core'
 import {
 	arr,
 	assertDefined,
@@ -23,6 +23,7 @@ import { scanFile } from '../categories/scanFile'
 import { fName, NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
 import { logger } from '../logger'
+import { matchTag } from '../utils/match-tag'
 
 // TODO: notify
 async function nameToTagOrCreate(name: string) {
@@ -105,6 +106,7 @@ export async function tagGet(filePath: string) {
 				pro.map(arr.unit),
 			),
 		),
+    asyncArr.filter(Boolean),
 		asyncArr.collect(sortedSink()),
 	)
 	if (res.length === 0) {
@@ -113,28 +115,40 @@ export async function tagGet(filePath: string) {
 	}
 	res.forEach(pipe(id, logger.log))
 }
-export async function listResourcesByTag(tagName: string, shuffle?: boolean) {
+
+export async function listResourcesByTag(
+	positive: string | undefined,
+	negative: string | undefined,
+	shuffle: boolean | undefined,
+) {
+	if (!(positive || negative)) {
+		logger.error('no pattern specified')
+		process.exit(1)
+	}
 	const config = await getConfig()
 	const pathPrism = getPathPrism(config.dirs)
 	const res = await flow(
-		NameToTags.get(tagName),
+		Tags.list(),
+		asyncArr.filter(pipe((x) => x[1], bind(fName(), 'view'), matchTag(positive, negative))),
+		asyncArr.map((x) => x[0]),
 		asyncArr.chain(bind(TagsToResources, 'get')),
 		asyncArr.chain(bind(ResourceToEntries, 'get')),
 		asyncArr.map(bind(pathPrism, 'put')),
 		asyncArr.collect(shuffle ? shuffledSink() : sortedSink()),
 	)
 	if (res.length === 0) {
-		logger.error(`no files found for tag: ${tagName}`)
+		logger.error(`no files found for tag: ${positive}`)
 		process.exit(1)
 	}
 	res.forEach(pipe(id, logger.log))
 }
 
-export async function listAllTags(shuffle?: boolean) {
+export async function listAllTags() {
 	const res = await flow(
 		Tags.values(),
 		asyncArr.map(bind(fName(), 'view')),
-		asyncArr.collect(shuffle ? shuffledSink() : sortedSink()),
+    asyncArr.filter(Boolean),
+		asyncArr.collect(sortedSink()),
 	)
 	if (res.length === 0) {
 		logger.error(`no tags found`)
