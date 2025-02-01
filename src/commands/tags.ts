@@ -1,5 +1,17 @@
-import { flow, pipe } from '@constellar/core'
-import { arr, insertSorted, insertValue, join, pro, removeValues, sort } from '@prncss-xyz/utils'
+import { flow, id, pipe } from '@constellar/core'
+import {
+	arr,
+	assertDefined,
+	asyncArr,
+	asyncCollect,
+	bind,
+	insertValue,
+	opt,
+	pro,
+	removeValues,
+	sortedSink,
+	valueSink,
+} from '@prncss-xyz/utils'
 
 import { ResourceToEntries } from '../categories/Entry'
 import { getPathPrism } from '../categories/Entry/pathPrism'
@@ -10,112 +22,121 @@ import { scanFile } from '../categories/scanFile'
 import { fName, NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
 import { logger } from '../logger'
-import { dedupeSorted } from '../utils/arrays'
-import { accumulator } from '../utils/arrumulator'
-import { pros } from '../utils/monads'
 
 async function nameToTagOrCreate(name: string) {
-	const tagKeys = await NameToTags.get(name)
-	const head = tagKeys[0]
-	if (head !== undefined) return head
-	return await Tags.create(name)
+	return flow(
+		name,
+		bind(NameToTags, 'get'),
+		pro.map((tagKeys) => tagKeys[0]),
+		pro.map(opt.or(Tags.create(name))),
+	)
 }
 
 export async function tagAddList(name: string, filePaths: string[]) {
 	const tagKey = await nameToTagOrCreate(name)
-	for (const filePath of filePaths) {
-		await walkList(filePath, async (filePath) => {
-			const entry = await scanFile(filePath)
-			if (entry === undefined) {
-				logger.error('file not found:', filePath)
-				return undefined
-			}
-			const lamport = await Lamport.get('singleton')
-			await Resources.map(
-				entry.resource,
-				fTags(entry.resource, lamport).update(insertValue(tagKey)),
-			)
-		})
-	}
+	const lamport = await Lamport.get('singleton')
+	await asyncCollect(
+		flow(
+			filePaths,
+			asyncArr.chain((x) => walkList(x)),
+			asyncArr.map(scanFile),
+			asyncArr.map(
+				opt.map((entry) =>
+					Resources.map(entry.resource, fTags(entry.resource, lamport).update(insertValue(tagKey))),
+				),
+			),
+		),
+	)(valueSink())
 }
 
 export async function tagDel(name: string, filePaths: string[]) {
 	const tagKeys = await NameToTags.get(name)
-	await walkDirOrFiles(filePaths, async (filePath) => {
-		const entry = await scanFile(filePath)
-		if (entry === undefined) {
-			logger.error('file not found:', filePath)
-			return undefined
-		}
-		const lamport = await Lamport.get('singleton')
-		await Resources.map(
-			entry.resource,
-			fTags(entry.resource, lamport).update(removeValues(tagKeys)),
-		)
-	})
+	const lamport = await Lamport.get('singleton')
+	await asyncCollect(
+		flow(
+			filePaths,
+			walkDirOrFiles,
+			asyncArr.map(scanFile),
+			asyncArr.map(
+				opt.map((entry) =>
+					Resources.map(
+						entry.resource,
+						fTags(entry.resource, lamport).update(removeValues(tagKeys)),
+					),
+				),
+			),
+		),
+	)(valueSink())
 }
 
 export async function tagAdd(name: string, filePaths: string[]) {
 	const tagKey = await nameToTagOrCreate(name)
-	await walkDirOrFiles(filePaths, async (filePath) => {
-		const entry = await scanFile(filePath)
-		if (entry === undefined) {
-			logger.error('file not found:', filePath)
-			return undefined
-		}
-		const lamport = await Lamport.get('singleton')
-		await Resources.map(entry.resource, fTags(entry.resource, lamport).update(insertValue(tagKey)))
-	})
+	const lamport = await Lamport.get('singleton')
+	await asyncCollect(
+		flow(
+			filePaths,
+			walkDirOrFiles,
+			asyncArr.map(scanFile),
+			asyncArr.map(assertDefined()),
+			asyncArr.map((entry) =>
+				Resources.map(entry.resource, fTags(entry.resource, lamport).update(insertValue(tagKey))),
+			),
+		),
+	)(valueSink())
 }
 
 export async function tagGet(filePath: string) {
 	const entry = await scanFile(filePath)
 	if (!entry) {
 		logger.error('file not found:', filePath)
-		return undefined
+		process.exit(1)
 	}
-	await flow(
+	const res = await flow(
 		Resources.get(entry.resource),
 		pro.map((v) => fTags().view(v)),
-		pros.chain(
+		asyncArr.chain(
 			pipe(
 				pro.unit,
-				pro.chain(Tags.get.bind(Tags)),
+				pro.chain(bind(Tags, 'get')),
 				pro.map((tag) => fName().view(tag!)),
 				pro.map(arr.unit),
 			),
 		),
-		pro.map(
-			pipe(
-				arr.tapZero(() => logger.error(`no tags found for file: ${filePath}`)),
-				sort(),
-				dedupeSorted,
-				join('\n'),
-				logger.log,
-			),
-		),
+		asyncArr.collect(sortedSink()),
 	)
+	if (res.length === 0) {
+		logger.error(`no tags found for file: ${filePath}`)
+		process.exit(1)
+	}
+	res.forEach(pipe(id, logger.log))
 }
 
 export async function listResourcesByTag(tagName: string) {
 	const config = await getConfig()
 	const pathPrism = getPathPrism(config.dirs)
-	flow(
+	const res = await flow(
 		NameToTags.get(tagName),
-		pros.chain(TagsToResources.get.bind(TagsToResources)),
-		pros.chain(ResourceToEntries.get.bind(ResourceToEntries)),
-		pros.chain(pipe(pathPrism.put.bind(pathPrism), pros.unit)),
-		pros.tapZero(() => logger.error(`no files found for tag: ${tagName}`)),
-		pro.map(pipe(sort(), dedupeSorted, join('\n'), logger.log)),
+		asyncArr.chain(bind(TagsToResources, 'get')),
+		asyncArr.chain(bind(ResourceToEntries, 'get')),
+		asyncArr.map(bind(pathPrism, 'put')),
+		asyncArr.collect(sortedSink()),
 	)
+	if (res.length === 0) {
+		logger.error(`no files found for tag: ${tagName}`)
+		process.exit(1)
+	}
+	res.forEach(pipe(id, logger.log))
 }
 
 export async function listAllTags() {
-	const [up, res] = accumulator<string[]>([])
-	for await (const [, entry] of Tags.list()) {
-		up(insertSorted(fName().view(entry)))
+	const res = await flow(
+		Tags.list(),
+		asyncArr.map(([, entry]) => fName().view(entry)),
+		asyncArr.collect(sortedSink()),
+	)
+	if (res.length === 0) {
+		logger.error(`no tags found`)
+		process.exit(1)
 	}
-	for (const name of res()) {
-		logger.log(name)
-	}
+	res.forEach(pipe(id, logger.log))
 }

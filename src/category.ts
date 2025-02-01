@@ -175,6 +175,11 @@ export class Category<Value, Name extends string, Key> implements ICategory<Key,
 	merge(key: Key, next: Value) {
 		return this.modify(key, (last) => pro.unit(last === undefined ? next : this.merger(next, last)))
 	}
+	modify(key: Key, up: ((last: undefined | Value) => Promise<Value>) | Value): Promise<Value>
+	modify(
+		key: Key,
+		up: ((last: undefined | Value) => Promise<undefined | Value>) | undefined | Value,
+	): Promise<undefined | Value>
 	modify(
 		key: Key,
 		up: ((last: undefined | Value) => Promise<undefined | Value>) | undefined | Value,

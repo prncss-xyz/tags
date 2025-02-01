@@ -1,4 +1,4 @@
-import { getDebouncedDeduped, isoAssert } from '@prncss-xyz/utils'
+import { getDebouncedDeduped, isoAssert, zipCmp } from '@prncss-xyz/utils'
 import { Dirent } from 'node:fs'
 import { watch } from 'node:fs'
 import { readdir } from 'node:fs/promises'
@@ -6,7 +6,6 @@ import { join, resolve } from 'node:path'
 
 import { CategoryKey } from '../category'
 import { getConfig } from '../config'
-import { zipCmp } from '../utils/zipCmp'
 import { Entries, NumberToResources } from './Entry'
 import { cmpPath, getPathPrism } from './Entry/pathPrism'
 import { Resources } from './Resource'

@@ -5,21 +5,21 @@ import { dirname, join } from 'node:path'
 import { logger } from '../../logger'
 import { cmpPath } from './pathPrism'
 
-export async function walkDirOrFiles(pathNames: string[], cb: (file: string) => Promise<void>) {
+export async function* walkDirOrFiles(pathNames: string[]) {
 	for (const pathName of pathNames) {
-		await walkDirOrFile(pathName, cb)
+		yield* walkDirOrFile(pathName)
 	}
 }
 
-export async function walkDirOrFile(pathName: string, cb: (file: string) => Promise<void>) {
+export async function* walkDirOrFile(pathName: string) {
 	try {
 		const stat = await lstat(pathName)
 		if (stat.isFile()) {
-			await cb(pathName)
+			yield pathName
 			return
 		}
 		if (stat.isDirectory()) {
-			await walkDir(pathName, cb)
+			yield* walkDir(pathName)
 			return
 		}
 	} catch (e) {
@@ -31,11 +31,11 @@ export async function walkDirOrFile(pathName: string, cb: (file: string) => Prom
 	}
 }
 
-export async function walkList(pathName: string, cb: (file: string) => Promise<void>) {
+export async function* walkList(pathName: string) {
 	const dir = dirname(pathName)
 	const content = await readFile(pathName, { encoding: 'utf8' })
 	for (const line of content.split('\n')) {
-		await cb(join(dir, line))
+		yield join(dir, line)
 	}
 }
 
@@ -43,15 +43,15 @@ function cmp(a: Dirent, b: Dirent) {
 	return cmpPath(a.name, b.name)
 }
 
-export async function walkDir(dir: string, cb: (file: string) => Promise<void>) {
+export async function* walkDir(dir: string): AsyncIterable<string> {
 	const entries = await readdir(dir, { withFileTypes: true })
 	entries.sort(cmp)
 	for (const entry of entries) {
 		if (entry.name.startsWith('.')) continue
 		if (entry.isDirectory()) {
-			await walkDir(join(dir, entry.name), cb)
+			yield* walkDir(join(dir, entry.name))
 			continue
 		}
-		await cb(join(dir, entry.name))
+		yield join(dir, entry.name)
 	}
 }

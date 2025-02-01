@@ -2,7 +2,7 @@ import { program } from 'commander'
 
 import { sync } from './categories/Persistance'
 import { scanDirs } from './categories/scanDirs'
-import { scanFile } from './categories/scanFile'
+import { scanFileSafe } from './categories/scanFile'
 import { Category } from './category'
 import { dupes } from './commands/dupes'
 import { exportData, importData } from './commands/export'
@@ -41,7 +41,7 @@ program.command('sync').action(async () => {
 })
 
 program.command('scan-file <filename>').action(async (filename) => {
-	await scanFile(filename)
+	await scanFileSafe(filename)
 })
 
 program.command('config').action(async () => {
@@ -64,12 +64,9 @@ program.command('tag-get <filename>').action(async (filename) => {
 	await tagGet(filename)
 })
 
-program.command('file-ls <tag>').action(async (tag) => {
+program.command('tag-ls [tag]').action(async (tag) => {
+	if (tag === undefined) return await listAllTags()
 	await listResourcesByTag(tag)
-})
-
-program.command('ls-tags').action(async () => {
-	await listAllTags()
 })
 
 program.command('reset').action(async () => {
