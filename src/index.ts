@@ -18,8 +18,6 @@ import { getConfig } from './config'
 import { reset } from './db'
 import { logger } from './logger'
 
-// TODO: tag-rm tag-mv
-
 program.command('dupes').action(async () => {
 	await dupes()
 })
@@ -40,34 +38,56 @@ program.command('sync').action(async () => {
 	await sync()
 })
 
-program.command('scan-file <filename>').action(async (filename) => {
-	await scanFileSafe(filename)
-})
+program
+	.command('scan-file')
+	.argument('<filename>')
+	.action(async (filename) => {
+		await scanFileSafe(filename)
+	})
 
 program.command('config').action(async () => {
 	logger.log(await getConfig())
 })
 
-program.command('tag-add <tag> <filename...>').action(async (tag, filenames) => {
-	await tagAdd(tag, filenames)
-})
+program
+	.command('tag-add')
+	.argument('<tag>')
+	.argument('<filename...>')
+	.action(async (tag, filenames) => {
+		await tagAdd(tag, filenames)
+	})
 
-program.command('tag-add-list <tag> <filename...>').action(async (tag, filenames) => {
-	await tagAddList(tag, filenames)
-})
+program
+	.command('tag-add-list')
+	.argument('<tag>')
+	.argument('<filename...>')
+	.action(async (tag, filenames) => {
+		await tagAddList(tag, filenames)
+	})
 
-program.command('tag-rm <tag> <filename...>').action(async (tag, filenames) => {
-	await tagDel(tag, filenames)
-})
+program
+	.command('tag-rm')
+	.argument('<tag>')
+	.argument('<filename...>')
+	.action(async (tag, filenames) => {
+		await tagDel(tag, filenames)
+	})
 
-program.command('tag-get <filename>').action(async (filename) => {
-	await tagGet(filename)
-})
+program
+	.command('tag-get')
+	.argument('<filename>')
+	.action(async (filename) => {
+		await tagGet(filename)
+	})
 
-program.command('tag-ls [tag]').action(async (tag) => {
-	if (tag === undefined) return await listAllTags()
-	await listResourcesByTag(tag)
-})
+program
+	.command('tag-ls')
+	.argument('[tag]')
+	.option('-s', '--shuffle')
+	.action(async (tag, { s }) => {
+		if (tag === undefined) return await listAllTags(s)
+		await listResourcesByTag(tag, s)
+	})
 
 program.command('reset').action(async () => {
 	await reset()
@@ -77,8 +97,11 @@ program.command('export').action(async () => {
 	await exportData()
 })
 
-program.command('import <dir>').action(async (dir) => {
-	await importData(dir)
-})
+program
+	.command('import')
+	.argument('<dir>')
+	.action(async (dir) => {
+		await importData(dir)
+	})
 
 program.parseAsync(process.argv)

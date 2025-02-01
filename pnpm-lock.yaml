@@ -15,8 +15,8 @@ importers:
         specifier: ^2.4.2
         version: 2.4.2
       '@prncss-xyz/utils':
-        specifier: ^0.18.0
-        version: 0.18.0(@constellar/core@2.4.2)
+        specifier: ^0.19.3
+        version: 0.19.3(@constellar/core@2.4.2)
       commander:
         specifier: ^13.1.0
         version: 13.1.0
@@ -518,8 +518,8 @@ packages:
     resolution: {integrity: sha512-cq8o4cWH0ibXh9VGi5P20Tu9XF/0fFXl9EUinr9QfTM7a7p0oTA4iJRCQWppXR1Pg8dSM0UCItCkPwsk9qWWYA==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
 
-  '@prncss-xyz/utils@0.18.0':
-    resolution: {integrity: sha512-63knUFeDpsnxll+yXB0GYmZ0R1GDTCyBfohEpF/gCqpaXv6K3ND7bhB+vGQArtoa1Mlugvdcco9x3Cbkzy5MnQ==}
+  '@prncss-xyz/utils@0.19.3':
+    resolution: {integrity: sha512-pwVCribuayxgFZ3eHeInAjWFgkNogwz8IiP99xNseQ2RuiJFwN/CRVSBEh3MBXbNsj934vVcmYv9NnSDuZ+8WQ==}
     peerDependencies:
       '@constellar/core': ^2.4.2
 
@@ -1789,7 +1789,7 @@ snapshots:
 
   '@pkgr/core@0.1.1': {}
 
-  '@prncss-xyz/utils@0.18.0(@constellar/core@2.4.2)':
+  '@prncss-xyz/utils@0.19.3(@constellar/core@2.4.2)':
     dependencies:
       '@constellar/core': 2.4.2
       nanoid: 5.0.9

@@ -1,4 +1,4 @@
-import { flow, id, pipe } from '@constellar/core'
+import { flow, id, insert, pipe } from '@constellar/core'
 import {
 	arr,
 	assertDefined,
@@ -9,6 +9,7 @@ import {
 	opt,
 	pro,
 	removeValues,
+	shuffledSink,
 	sortedSink,
 	valueSink,
 } from '@prncss-xyz/utils'
@@ -25,7 +26,6 @@ import { logger } from '../logger'
 
 // TODO: notify
 async function nameToTagOrCreate(name: string) {
-	const lamport = await Lamport.get('singleton')
 	return flow(
 		name,
 		bind(NameToTags, 'get'),
@@ -113,8 +113,7 @@ export async function tagGet(filePath: string) {
 	}
 	res.forEach(pipe(id, logger.log))
 }
-
-export async function listResourcesByTag(tagName: string) {
+export async function listResourcesByTag(tagName: string, shuffle?: boolean) {
 	const config = await getConfig()
 	const pathPrism = getPathPrism(config.dirs)
 	const res = await flow(
@@ -122,7 +121,7 @@ export async function listResourcesByTag(tagName: string) {
 		asyncArr.chain(bind(TagsToResources, 'get')),
 		asyncArr.chain(bind(ResourceToEntries, 'get')),
 		asyncArr.map(bind(pathPrism, 'put')),
-		asyncArr.collect(sortedSink()),
+		asyncArr.collect(shuffle ? shuffledSink() : sortedSink()),
 	)
 	if (res.length === 0) {
 		logger.error(`no files found for tag: ${tagName}`)
@@ -131,11 +130,11 @@ export async function listResourcesByTag(tagName: string) {
 	res.forEach(pipe(id, logger.log))
 }
 
-export async function listAllTags() {
+export async function listAllTags(shuffle?: boolean) {
 	const res = await flow(
 		Tags.values(),
 		asyncArr.map(bind(fName(), 'view')),
-		asyncArr.collect(sortedSink()),
+		asyncArr.collect(shuffle ? shuffledSink() : sortedSink()),
 	)
 	if (res.length === 0) {
 		logger.error(`no tags found`)
