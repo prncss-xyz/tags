@@ -38,6 +38,15 @@ async function getConfig_() {
 
 const config = getConfig_()
 
+const testConfig: z.infer<typeof ConfigSchema> = {
+	dirs: {
+		downloads: 'Downloads',
+	},
+	export: '/tmp/tags/export',
+	feed: '/tmp/tags/feed',
+}
+
 export function getConfig() {
+	if (process.env.TEST === 'TEST') return testConfig
 	return config
 }
