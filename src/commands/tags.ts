@@ -25,7 +25,6 @@ import { getConfig } from '../config'
 import { logger } from '../logger'
 import { matchTag } from '../utils/match-tag'
 
-// TODO: notify
 async function nameToTagOrCreate(name: string) {
 	return flow(
 		name,
@@ -80,9 +79,10 @@ export async function tagAdd(name: string, filePaths: string[]) {
 			filePaths,
 			walkDirOrFiles,
 			asyncArr.map(pipe(id, scanFile)),
-			asyncArr.map(assertDefined()),
-			asyncArr.map((entry) =>
-				Resources.map(entry.resource, fTags(entry.resource, lamport).update(insertValue(tagKey))),
+			asyncArr.map(
+				opt.map((entry) =>
+					Resources.map(entry.resource, fTags(entry.resource, lamport).update(insertValue(tagKey))),
+				),
 			),
 		),
 	)(valueSink())
@@ -114,6 +114,15 @@ export async function tagGet(filePath: string) {
 		process.exit(1)
 	}
 	res.forEach(pipe(id, logger.log))
+}
+
+export async function tagMv(source: string, target: string) {
+	const tags = await NameToTags.get(source)
+	if (tags.length === 0) {
+		logger.error(`no tags found for source: ${source}`)
+		process.exit(1)
+	}
+	return Promise.all(tags.map(async (tag) => Tags.map(tag, fName().update(target))))
 }
 
 export async function listResourcesByTag(

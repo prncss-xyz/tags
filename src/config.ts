@@ -40,7 +40,7 @@ const config = getConfig_()
 
 const testConfig: z.infer<typeof ConfigSchema> = {
 	dirs: {
-		downloads: 'Downloads',
+		downloads: `${home}/Downloads`,
 	},
 	export: `/tmp/${appName}/export`,
 	feed: `/tmp/${appName}/feed`,

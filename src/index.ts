@@ -13,6 +13,7 @@ import {
 	tagAddList,
 	tagDel,
 	tagGet,
+	tagMv,
 } from './commands/tags'
 import { getConfig } from './config'
 import { reset } from './db'
@@ -93,6 +94,17 @@ program
 program.command('tag-all').action(async () => {
 	await listAllTags()
 })
+
+program
+	.command('tag-mv')
+	.description(
+		"rename a tag; to merge tags move one tag to the other tag's name; to delete a tag move to empty string",
+	)
+	.argument('<source>')
+	.argument('<target>')
+	.action(async (source, target) => {
+		await tagMv(source, target)
+	})
 
 program.command('reset').action(async () => {
 	await reset()
