@@ -1,18 +1,20 @@
-import { focus, prop, to } from '@constellar/core'
+import { focus, pipe, prop, to, valueOr } from '@constellar/core'
 
 import { category, CategoryKey, CategoryValue } from '../../category'
 import { Resources } from '../Resource'
 
 // encoded path is the key
 export type IEntry = {
-	mtime: number
+	bTime: number
+	mTime: number
 	resource: CategoryKey<typeof Resources>
 }
 
 export const Entries = category('Entries')<IEntry>()
 
 export const fResource = focus<IEntry>()(prop('resource'))
-export const fMtime = focus<IEntry>()(prop('mtime'))
+export const fMTime = focus<IEntry>()(prop('mTime'))
+export const fBTime = focus<IEntry>()(pipe(prop('bTime'), valueOr(0)))
 
 export const ResourceToEntries = Entries.oneToMany('ResourceToEntries', fResource)
 const fNumber = focus<CategoryValue<typeof ResourceToEntries>>()(

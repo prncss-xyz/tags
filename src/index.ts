@@ -26,13 +26,13 @@ program.command('dump').action(async () => {
 	await Category.dump()
 })
 
-program.command('watch').action(async () => {
-	await scanDirs(true)
-})
-
-program.command('scan').action(async () => {
-	await scanDirs()
-})
+program
+	.command('scan')
+	.option('-w, --watch')
+	.option('-f, --force')
+	.action(async ({ force, watch }) => {
+		await scanDirs(watch, force)
+	})
 
 program.command('sync').action(async () => {
 	await sync()
@@ -40,9 +40,10 @@ program.command('sync').action(async () => {
 
 program
 	.command('scan-file')
+	.option('-f, --force')
 	.argument('<filename>')
-	.action(async (filename) => {
-		await scanFileSafe(filename)
+	.action(async (filename, { force }) => {
+		await scanFileSafe(filename, force)
 	})
 
 program.command('config').action(async () => {

@@ -55,7 +55,7 @@ function cmpEntry(a: CategoryKey<typeof Entries>, b: CategoryKey<typeof Entries>
 
 const debounceDelay = 1000
 
-export async function scanDirs(w = false) {
+export async function scanDirs(w: boolean | undefined, force: boolean | undefined) {
 	const pathPrism = getPathPrism((await getConfig()).dirs)
 	const removed: CategoryKey<typeof Entries>[] = []
 	await zipCmp(iterateDirs(), Entries.keys(), cmpEntry, function (a, b) {
@@ -64,7 +64,7 @@ export async function scanDirs(w = false) {
 			removed.push(b)
 			return
 		}
-		scanFile(pathPrism.put(a))
+		scanFile(pathPrism.put(a), force)
 	})
 	for (const key of removed) {
 		await Entries.remove(key)

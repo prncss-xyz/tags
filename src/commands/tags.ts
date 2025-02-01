@@ -42,7 +42,7 @@ export async function tagAddList(name: string, filePaths: string[]) {
 		flow(
 			filePaths,
 			asyncArr.chain(walkList),
-			asyncArr.map(scanFile),
+			asyncArr.map(pipe(id, scanFile)),
 			asyncArr.map(
 				opt.map((entry) =>
 					Resources.map(entry.resource, fTags(entry.resource, lamport).update(insertValue(tagKey))),
@@ -59,7 +59,7 @@ export async function tagDel(name: string, filePaths: string[]) {
 		flow(
 			filePaths,
 			walkDirOrFiles,
-			asyncArr.map(scanFile),
+			asyncArr.map(pipe(id, scanFile)),
 			asyncArr.map(
 				opt.map((entry) =>
 					Resources.map(
@@ -79,7 +79,7 @@ export async function tagAdd(name: string, filePaths: string[]) {
 		flow(
 			filePaths,
 			walkDirOrFiles,
-			asyncArr.map(scanFile),
+			asyncArr.map(pipe(id, scanFile)),
 			asyncArr.map(assertDefined()),
 			asyncArr.map((entry) =>
 				Resources.map(entry.resource, fTags(entry.resource, lamport).update(insertValue(tagKey))),
@@ -106,7 +106,7 @@ export async function tagGet(filePath: string) {
 				pro.map(arr.unit),
 			),
 		),
-    asyncArr.filter(Boolean),
+		asyncArr.filter(Boolean),
 		asyncArr.collect(sortedSink()),
 	)
 	if (res.length === 0) {
@@ -147,7 +147,7 @@ export async function listAllTags() {
 	const res = await flow(
 		Tags.values(),
 		asyncArr.map(bind(fName(), 'view')),
-    asyncArr.filter(Boolean),
+		asyncArr.filter(Boolean),
 		asyncArr.collect(sortedSink()),
 	)
 	if (res.length === 0) {
