@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 
 import { CategoryKey } from '../category'
 import { getConfig } from '../config'
-import { Entries, NumberToResources } from './Entry'
+import { Entries, UnusedToResources } from './Entry'
 import { cmpPath, getPathPrism } from './Entry/pathPrism'
 import { Resources } from './Resource'
 import { scanFile } from './scanFile'
@@ -76,8 +76,8 @@ export async function scanDirs(w: boolean | undefined, force: boolean | undefine
 			const last = event.last
 			isoAssert(last !== undefined)
 			setTimeout(async () => {
-				const unused = await NumberToResources.get('unused')
-				if (!unused.includes(last.resource)) return
+				const unused = await UnusedToResources.get(last.resource)
+				if (!unused) return
 				Resources.remove(last.resource)
 			}, 10 * debounceDelay)
 		})

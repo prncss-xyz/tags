@@ -1,11 +1,13 @@
 import { focus, pipe, prop } from '@constellar/core'
 
 import { CategoryKey, categoryWithDefault } from '../../category'
+import { Entries } from '../Entry'
 import {
 	initLamportObj,
 	LamportObject,
 	lamportObjLens,
 	recordToSet,
+	TLamport,
 	toLamport,
 } from '../Lamport'
 import { notify } from '../Persistance'
@@ -22,8 +24,7 @@ export const Resources = categoryWithDefault('Resources')<IResource>(() => ({
 	tags: initLamportObj({}),
 }))
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const fTags = (key: CategoryKey<typeof Resources> = '' as any, lamport = toLamport(0)) =>
+export const fTags = (key: CategoryKey<typeof Resources>, lamport: TLamport) =>
 	focus<IResource>()(
 		pipe(
 			prop('tags'),
@@ -34,4 +35,17 @@ export const fTags = (key: CategoryKey<typeof Resources> = '' as any, lamport = 
 		),
 	)
 
-export const TagsToResources = Resources.manyToMany('TagsToResources', fTags())
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const fTagsGet = fTags('' as any, toLamport(0))
+
+export const TagsToResources = Resources.manyToMany('TagsToResources', fTagsGet)
+export const UntaggedResources = Resources.oneToIndex(
+	'UntaggedResources',
+	(r) => fTagsGet.view(r).length === 0,
+)
+Entries.subscribe(({ last, next }) => {
+	const l = last?.resource
+	const n = next?.resource
+	if (n === undefined && l !== undefined) UntaggedResources.remove(l)
+	if (l === undefined && n !== undefined) UntaggedResources.put(n, true)
+})

@@ -9,6 +9,7 @@ import { exportData, importData } from './commands/export'
 import {
 	listAllTags,
 	listResourcesByTag,
+	listUntagged,
 	tagAdd,
 	tagAddList,
 	tagDel,
@@ -89,6 +90,13 @@ program
 	.option('-s', '--shuffle')
 	.action(async (tag, { negative, s }) => {
 		await listResourcesByTag(tag, negative, s)
+	})
+
+program
+	.command('tag-un')
+	.option('-s', '--shuffle')
+	.action(async ({ s }) => {
+		await listUntagged(s)
 	})
 
 program.command('tag-all').action(async () => {

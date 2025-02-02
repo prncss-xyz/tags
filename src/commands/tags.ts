@@ -18,7 +18,13 @@ import { ResourceToEntries } from '../categories/Entry'
 import { getPathPrism } from '../categories/Entry/pathPrism'
 import { walkDirOrFiles, walkList } from '../categories/Entry/walkDir'
 import { Lamport } from '../categories/Lamport'
-import { fTags, Resources, TagsToResources } from '../categories/Resource'
+import {
+	fTags,
+	fTagsGet,
+	Resources,
+	TagsToResources,
+	UntaggedResources,
+} from '../categories/Resource'
 import { scanFile } from '../categories/scanFile'
 import { fName, NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
@@ -96,7 +102,7 @@ export async function tagGet(filePath: string) {
 	}
 	const res = await flow(
 		Resources.get(entry.resource),
-		pro.map(bind(fTags(), 'view')),
+		pro.map(bind(fTagsGet, 'view')),
 		asyncArr.chain(
 			pipe(
 				pro.unit,
@@ -137,7 +143,7 @@ export async function listResourcesByTag(
 	const config = await getConfig()
 	const pathPrism = getPathPrism(config.dirs)
 	const res = await flow(
-		Tags.list(),
+		Tags.entries(),
 		asyncArr.filter(pipe((x) => x[1], bind(fName(), 'view'), matchTag(positive, negative))),
 		asyncArr.map((x) => x[0]),
 		asyncArr.chain(bind(TagsToResources, 'get')),
@@ -158,6 +164,22 @@ export async function listAllTags() {
 		asyncArr.map(bind(fName(), 'view')),
 		asyncArr.filter(Boolean),
 		asyncArr.collect(sortedSink()),
+	)
+	if (res.length === 0) {
+		logger.error(`no tags found`)
+		process.exit(1)
+	}
+	res.forEach(pipe(id, logger.log))
+}
+
+export async function listUntagged(shuffle: boolean | undefined) {
+	const config = await getConfig()
+	const pathPrism = getPathPrism(config.dirs)
+	const res = await flow(
+		UntaggedResources.keys(),
+		asyncArr.chain(bind(ResourceToEntries, 'get')),
+		asyncArr.map(bind(pathPrism, 'put')),
+		asyncArr.collect(shuffle ? shuffledSink() : sortedSink()),
 	)
 	if (res.length === 0) {
 		logger.error(`no tags found`)

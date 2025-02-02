@@ -5,6 +5,7 @@ import {
 	isoAssert,
 	manyToMany,
 	NonRemove,
+	oneToIndex,
 	oneToMany,
 	oneToOne,
 	opt,
@@ -130,6 +131,18 @@ export class Category<Value, Name extends string, Key> implements ICategory<Key,
 			for await (const [key, value] of category.sublevel.iterator()) await w(key, value)
 		}
 	}
+	entries(
+		opts?: Partial<{
+			gt: Key
+			gte: Key
+			limit: number
+			lt: Key
+			lte: Key
+			reverse: boolean
+		}>,
+	) {
+		return this.sublevel.iterator(opts ?? {})
+	}
 	async get(key: Key): Promise<undefined | Value> {
 		return await this.sublevel.get(key)
 	}
@@ -147,21 +160,6 @@ export class Category<Value, Name extends string, Key> implements ICategory<Key,
 		}>,
 	) {
 		return this.sublevel.keys(opts ?? {})
-	}
-	list(
-		opts?: Partial<{
-			gt: Key
-			gte: Key
-			limit: number
-			lt: Key
-			lte: Key
-			reverse: boolean
-		}>,
-	) {
-		return this.sublevel.iterator(opts ?? {})
-	}
-	listen(cb: (Event: Event<Key, Value>, category: typeof this) => void) {
-		return this.subscribe((event) => cb(event, this))
 	}
 	manyToMany<TKey, Fail, Command, IS_PRISM>(
 		prefix: string,
@@ -222,12 +220,16 @@ export class Category<Value, Name extends string, Key> implements ICategory<Key,
 		this.promises.set(key, p)
 		return p
 	}
+	oneToIndex(prefix: string, predicate: (v: Value) => unknown) {
+		return new OneToIndex(prefix, this, predicate)
+	}
 	oneToMany<TKey, Fail, Command, IS_PRISM>(
 		prefix: string,
 		optic: COptic<TKey, Value, Fail, Command, IS_PRISM>,
 	) {
 		return new OneToMany(prefix, this, optic.view.bind(optic), getDefault<Key>, isDefault, id)
 	}
+
 	oneToOne<TKey, Fail, Command, IS_PRISM>(
 		prefix: string,
 		optic: COptic<TKey, Value, Fail, Command, IS_PRISM>,
@@ -240,10 +242,10 @@ export class Category<Value, Name extends string, Key> implements ICategory<Key,
 		)
 	}
 	async put(key: Key, next: Value) {
-		return this.modify(key, next)
+		await this.modify(key, next)
 	}
 	async remove(key: Key) {
-		return this.modify(key, undefined)
+		await this.modify(key, undefined)
 	}
 	subscribe(cb: (event: Event<Key, Value>) => void) {
 		this.subscriptions.add(cb)
@@ -411,5 +413,13 @@ export class OneToOne<SValue, TValue, SKey, TKey, Fail, Command> extends Categor
 	) {
 		super(prefix, { index: true })
 		this.back = oneToOne(source, getTargetId, this, o)
+	}
+}
+
+export class OneToIndex<SValue, SKey> extends Category<true, string, SKey> {
+	back: (t: SValue) => unknown
+	constructor(prefix: string, source: ICategory<SKey, SValue>, predicate: (v: SValue) => unknown) {
+		super(prefix, { index: true })
+		this.back = oneToIndex(source, predicate, this)
 	}
 }

@@ -34,14 +34,14 @@ export async function exportData() {
 	for (const [prefix, category] of categories) {
 		if (category.index) continue
 		if (prefix === 'Entries') {
-			for await (const entry of category.list()) {
+			for await (const entry of category.entries()) {
 				const resource = entry[1].resource as CategoryKey<'Resources'>
 				if (await Resources.has(resource))
 					await writeFile(path.join(exp, prefix), codec.put(entry), { flag: 'a' })
 			}
 			continue
 		}
-		for await (const entry of category.list()) {
+		for await (const entry of category.entries()) {
 			await writeFile(path.join(exp, prefix), codec.put(entry), { flag: 'a' })
 		}
 	}
