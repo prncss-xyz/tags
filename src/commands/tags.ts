@@ -1,14 +1,17 @@
 import { flow, id, pipe } from '@constellar/core'
 import {
-	arr,
 	assertDefined,
-	asyncArr,
 	asyncCollect,
+	asyncIter,
+	AsyncIterableCtx,
 	bind,
-	insertValue,
+	filtered,
+	FoldForm,
+	getProp,
+	insertSorted,
+	iter,
 	opt,
 	pro,
-	removeValues,
 	shuffledSink,
 	sortedSink,
 	valueSink,
@@ -35,7 +38,7 @@ async function nameToTagOrCreate(name: string) {
 	return flow(
 		name,
 		bind(NameToTags, 'get'),
-		pro.map((tagKeys) => tagKeys[0]),
+		pro.map(getProp(0)),
 		pro.map(opt.or(Tags.create(name))),
 	)
 }
@@ -46,15 +49,24 @@ export async function tagAddList(name: string, filePaths: string[]) {
 	await asyncCollect(
 		flow(
 			filePaths,
-			asyncArr.chain(walkList),
-			asyncArr.map(pipe(id, scanFile)),
-			asyncArr.map(
+			asyncIter.chain(walkList),
+			asyncIter.map(pipe(id, scanFile)),
+			asyncIter.map(
 				opt.map((entry) =>
-					Resources.map(entry.resource, fTags(entry.resource, lamport).update(insertValue(tagKey))),
+					Resources.map(
+						entry.resource,
+						fTags(entry.resource, lamport).update(insertSorted(tagKey)),
+					),
 				),
 			),
 		),
 	)(valueSink())
+}
+
+function included<X>(elements: X[]) {
+	return function (x: X) {
+		return elements.includes(x)
+	}
 }
 
 export async function tagDel(name: string, filePaths: string[]) {
@@ -64,12 +76,12 @@ export async function tagDel(name: string, filePaths: string[]) {
 		flow(
 			filePaths,
 			walkDirOrFiles,
-			asyncArr.map(pipe(id, scanFile)),
-			asyncArr.map(
+			asyncIter.map(pipe(id, scanFile)),
+			asyncIter.map(
 				opt.map((entry) =>
 					Resources.map(
 						entry.resource,
-						fTags(entry.resource, lamport).update(removeValues(tagKeys)),
+						fTags(entry.resource, lamport).update(filtered(included(tagKeys))),
 					),
 				),
 			),
@@ -84,10 +96,13 @@ export async function tagAdd(name: string, filePaths: string[]) {
 		flow(
 			filePaths,
 			walkDirOrFiles,
-			asyncArr.map(pipe(id, scanFile)),
-			asyncArr.map(
+			asyncIter.map(pipe(id, scanFile)),
+			asyncIter.map(
 				opt.map((entry) =>
-					Resources.map(entry.resource, fTags(entry.resource, lamport).update(insertValue(tagKey))),
+					Resources.map(
+						entry.resource,
+						fTags(entry.resource, lamport).update(insertSorted(tagKey)),
+					),
 				),
 			),
 		),
@@ -103,17 +118,17 @@ export async function tagGet(filePath: string) {
 	const res = await flow(
 		Resources.get(entry.resource),
 		pro.map(bind(fTagsGet, 'view')),
-		asyncArr.chain(
+		asyncIter.chain(
 			pipe(
 				pro.unit,
 				pro.chain(bind(Tags, 'get')),
 				pro.map(assertDefined()),
 				pro.map(bind(fName(), 'view')),
-				pro.map(arr.unit),
+				pro.map(iter.unit),
 			),
 		),
-		asyncArr.filter(Boolean),
-		asyncArr.collect(sortedSink()),
+		asyncIter.filter(Boolean),
+		asyncIter.collect(sortedSink()),
 	)
 	if (res.length === 0) {
 		logger.error(`no tags found for file: ${filePath}`)
@@ -144,12 +159,12 @@ export async function listResourcesByTag(
 	const pathPrism = getPathPrism(config.dirs)
 	const res = await flow(
 		Tags.entries(),
-		asyncArr.filter(pipe((x) => x[1], bind(fName(), 'view'), matchTag(positive, negative))),
-		asyncArr.map((x) => x[0]),
-		asyncArr.chain(bind(TagsToResources, 'get')),
-		asyncArr.chain(bind(ResourceToEntries, 'get')),
-		asyncArr.map(bind(pathPrism, 'put')),
-		asyncArr.collect(shuffle ? shuffledSink() : sortedSink()),
+		asyncIter.filter(pipe(getProp(1), bind(fName(), 'view'), matchTag(positive, negative))),
+		asyncIter.map(getProp(0)),
+		asyncIter.chain(bind(TagsToResources, 'get')),
+		asyncIter.chain(bind(ResourceToEntries, 'get')),
+		asyncIter.map(bind(pathPrism, 'put')),
+		asyncIter.collect(shuffle ? shuffledSink() : sortedSink()),
 	)
 	if (res.length === 0) {
 		logger.error(`no files found for tag: ${positive}`)
@@ -161,9 +176,9 @@ export async function listResourcesByTag(
 export async function listAllTags() {
 	const res = await flow(
 		Tags.values(),
-		asyncArr.map(bind(fName(), 'view')),
-		asyncArr.filter(Boolean),
-		asyncArr.collect(sortedSink()),
+		asyncIter.map(bind(fName(), 'view')),
+		asyncIter.filter(Boolean),
+		asyncIter.collect(sortedSink()),
 	)
 	if (res.length === 0) {
 		logger.error(`no tags found`)
@@ -177,13 +192,21 @@ export async function listUntagged(shuffle: boolean | undefined) {
 	const pathPrism = getPathPrism(config.dirs)
 	const res = await flow(
 		UntaggedResources.keys(),
-		asyncArr.chain(bind(ResourceToEntries, 'get')),
-		asyncArr.map(bind(pathPrism, 'put')),
-		asyncArr.collect(shuffle ? shuffledSink() : sortedSink()),
+		asyncIter.chain(bind(ResourceToEntries, 'get')),
+		asyncIter.map(bind(pathPrism, 'put')),
+		asyncIter.collect(shuffle ? shuffledSink() : sortedSink()),
 	)
 	if (res.length === 0) {
 		logger.error(`no tags found`)
 		process.exit(1)
 	}
 	res.forEach(pipe(id, logger.log))
+}
+
+export const asyncArr = {
+	collect<AccForm, RForm, S>(form: FoldForm<S, AccForm, RForm, AsyncIterableCtx<S>>) {
+		return function (source: AsyncIterable<S> | Promise<AsyncIterable<S>>) {
+			return asyncCollect(source)(form)
+		}
+	},
 }
