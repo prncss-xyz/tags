@@ -1,20 +1,17 @@
 import { flow, id, pipe } from '@constellar/core'
 import {
 	assertDefined,
-	asyncCollect,
 	asyncIter,
-	AsyncIterableCtx,
 	bind,
 	filtered,
-	FoldForm,
 	getProp,
+	included,
 	insertSorted,
-	iter,
 	opt,
 	pro,
 	shuffledSink,
 	sortedSink,
-	valueSink,
+	voidSink,
 } from '@prncss-xyz/utils'
 
 import { ResourceToEntries } from '../categories/Entry'
@@ -46,67 +43,68 @@ async function nameToTagOrCreate(name: string) {
 export async function tagAddList(name: string, filePaths: string[]) {
 	const tagKey = await nameToTagOrCreate(name)
 	const lamport = await Lamport.get('singleton')
-	await asyncCollect(
-		flow(
-			filePaths,
-			asyncIter.chain(walkList),
-			asyncIter.map(pipe(id, scanFile)),
-			asyncIter.map(
-				opt.map((entry) =>
-					Resources.map(
-						entry.resource,
-						fTags(entry.resource, lamport).update(insertSorted(tagKey)),
+	await flow(
+		filePaths,
+		asyncIter.chain(walkList),
+		asyncIter.map(
+			pipe(
+				id,
+				scanFile,
+				pro.map(
+					opt.map((entry) =>
+						Resources.map(
+							entry.resource,
+							fTags(entry.resource, lamport).update(insertSorted(tagKey)),
+						),
 					),
 				),
 			),
 		),
-	)(valueSink())
-}
-
-function included<X>(elements: X[]) {
-	return function (x: X) {
-		return elements.includes(x)
-	}
+		asyncIter.collect(voidSink()),
+	)
 }
 
 export async function tagDel(name: string, filePaths: string[]) {
 	const tagKeys = await NameToTags.get(name)
 	const lamport = await Lamport.get('singleton')
-	await asyncCollect(
-		flow(
-			filePaths,
-			walkDirOrFiles,
-			asyncIter.map(pipe(id, scanFile)),
-			asyncIter.map(
-				opt.map((entry) =>
-					Resources.map(
-						entry.resource,
-						fTags(entry.resource, lamport).update(filtered(included(tagKeys))),
-					),
+	await flow(
+		filePaths,
+		walkDirOrFiles,
+		asyncIter.map(pipe(id, scanFile)),
+		asyncIter.map(
+			opt.map((entry) =>
+				Resources.map(
+					entry.resource,
+					fTags(entry.resource, lamport).update(filtered(included(tagKeys))),
 				),
 			),
 		),
-	)(valueSink())
+		asyncIter.collect(voidSink()),
+	)
 }
 
 export async function tagAdd(name: string, filePaths: string[]) {
 	const tagKey = await nameToTagOrCreate(name)
 	const lamport = await Lamport.get('singleton')
-	await asyncCollect(
-		flow(
-			filePaths,
-			walkDirOrFiles,
-			asyncIter.map(pipe(id, scanFile)),
-			asyncIter.map(
-				opt.map((entry) =>
-					Resources.map(
-						entry.resource,
-						fTags(entry.resource, lamport).update(insertSorted(tagKey)),
+	await flow(
+		filePaths,
+		walkDirOrFiles,
+		asyncIter.map(
+			pipe(
+				id,
+				scanFile,
+				pro.map(
+					opt.map((entry) =>
+						Resources.map(
+							entry.resource,
+							fTags(entry.resource, lamport).update(insertSorted(tagKey)),
+						),
 					),
 				),
 			),
 		),
-	)(valueSink())
+		asyncIter.collect(voidSink()),
+	)
 }
 
 export async function tagGet(filePath: string) {
@@ -120,14 +118,12 @@ export async function tagGet(filePath: string) {
 		pro.map(bind(fTagsGet, 'view')),
 		asyncIter.chain(
 			pipe(
-				pro.unit,
-				pro.chain(bind(Tags, 'get')),
-				pro.map(assertDefined()),
+				bind(Tags, 'get'),
+				pro.map(pipe(assertDefined())),
 				pro.map(bind(fName(), 'view')),
-				pro.map(iter.unit),
+				pro.map(opt.toIter),
 			),
 		),
-		asyncIter.filter(Boolean),
 		asyncIter.collect(sortedSink()),
 	)
 	if (res.length === 0) {
@@ -176,7 +172,8 @@ export async function listResourcesByTag(
 export async function listAllTags() {
 	const res = await flow(
 		Tags.values(),
-		asyncIter.map(bind(fName(), 'view')),
+		asyncIter.map(pipe(bind(fName(), 'view'))),
+		// remote empty strings, which represent deleted tags
 		asyncIter.filter(Boolean),
 		asyncIter.collect(sortedSink()),
 	)
@@ -201,12 +198,4 @@ export async function listUntagged(shuffle: boolean | undefined) {
 		process.exit(1)
 	}
 	res.forEach(pipe(id, logger.log))
-}
-
-export const asyncArr = {
-	collect<AccForm, RForm, S>(form: FoldForm<S, AccForm, RForm, AsyncIterableCtx<S>>) {
-		return function (source: AsyncIterable<S> | Promise<AsyncIterable<S>>) {
-			return asyncCollect(source)(form)
-		}
-	},
 }
