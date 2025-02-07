@@ -7,6 +7,7 @@ import {
 	getProp,
 	included,
 	insertSorted,
+	negate,
 	opt,
 	pro,
 	shuffledSink,
@@ -28,7 +29,7 @@ import {
 import { scanFile } from '../categories/scanFile'
 import { fName, NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'
-import { logger } from '../logger'
+import { logged, logger } from '../logger'
 import { matchTag } from '../utils/match-tag'
 
 async function nameToTagOrCreate(name: string) {
@@ -75,7 +76,11 @@ export async function tagDel(name: string, filePaths: string[]) {
 			opt.map((entry) =>
 				Resources.map(
 					entry.resource,
-					fTags(entry.resource, lamport).update(filtered(included(tagKeys))),
+					pipe(
+						logged,
+						fTags(entry.resource, lamport).update(filtered(negate(included(tagKeys)))),
+						logged,
+					),
 				),
 			),
 		),

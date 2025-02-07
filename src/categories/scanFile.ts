@@ -17,13 +17,18 @@ export async function scanFile(filePath: string, force?: boolean) {
 		return undefined
 	}
 	return await Entries.modify(resourceKey, async (last) => {
-		const { birthtimeMs: bTime, mtimeMs: mTime } = await stat(filePath)
-		// we don't do simple equality to allow for the case where many machines share the same db and have different clocks
-		if (last === undefined || force || last.mTime >= mTime) {
-			const checksum = await calculateChecksum(filePath)
-			return { bTime, mTime, resource: checksum }
+		try {
+			const { birthtimeMs: bTime, mtimeMs: mTime } = await stat(filePath)
+			// we don't do simple equality to allow for the case where many machines share the same db and have different clocks
+			if (last === undefined || force || last.mTime >= mTime) {
+				const checksum = await calculateChecksum(filePath)
+				return { bTime, mTime, resource: checksum }
+			}
+			return last
+		} catch (_e) {
+			logger.error(`file ${filePath} not found`)
+			return undefined
 		}
-		return last
 	})
 }
 
