@@ -131,19 +131,11 @@ export async function tagGet(filePath: string) {
 		),
 		asyncIter.collect(sortedSink()),
 	)
-	if (res.length === 0) {
-		logger.error(`no tags found for file: ${filePath}`)
-		process.exit(1)
-	}
 	res.forEach(pipe(id, logger.log))
 }
 
 export async function tagMv(source: string, target: string) {
 	const tags = await NameToTags.get(source)
-	if (tags.length === 0) {
-		logger.error(`no tags found for source: ${source}`)
-		process.exit(1)
-	}
 	return Promise.all(tags.map(async (tag) => Tags.map(tag, fName().update(target))))
 }
 
@@ -167,10 +159,6 @@ export async function listResourcesByTag(
 		asyncIter.map(bind(pathPrism, 'put')),
 		asyncIter.collect(shuffle ? shuffledSink() : sortedSink()),
 	)
-	if (res.length === 0) {
-		logger.error(`no files found for tag: ${positive}`)
-		process.exit(1)
-	}
 	res.forEach(pipe(id, logger.log))
 }
 
@@ -182,10 +170,6 @@ export async function listAllTags() {
 		asyncIter.filter(Boolean),
 		asyncIter.collect(sortedSink()),
 	)
-	if (res.length === 0) {
-		logger.error(`no tags found`)
-		process.exit(1)
-	}
 	res.forEach(pipe(id, logger.log))
 }
 
@@ -198,9 +182,5 @@ export async function listUntagged(shuffle: boolean | undefined) {
 		asyncIter.map(bind(pathPrism, 'put')),
 		asyncIter.collect(shuffle ? shuffledSink() : sortedSink()),
 	)
-	if (res.length === 0) {
-		logger.error(`no tags found`)
-		process.exit(1)
-	}
 	res.forEach(pipe(id, logger.log))
 }

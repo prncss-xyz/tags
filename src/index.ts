@@ -4,7 +4,7 @@ import { sync } from './categories/Persistance'
 import { scanDirs } from './categories/scanDirs'
 import { scanFileSafe } from './categories/scanFile'
 import { Category } from './category'
-import { dupes } from './commands/dupes'
+import { dedupe, dupes } from './commands/dupes'
 import { exportData, importData } from './commands/export'
 import {
 	listAllTags,
@@ -23,6 +23,13 @@ import { logger } from './logger'
 program.command('dupes').action(async () => {
 	await dupes()
 })
+
+program
+	.command('dedupe')
+	.description('remove all but first duplicate')
+	.action(async () => {
+		await dedupe()
+	})
 
 program.command('dump').action(async () => {
 	await Category.dump()

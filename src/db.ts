@@ -9,7 +9,7 @@ isoAssert(xdgData)
 const dbPath = path.join(
 	process.env.TEST === 'TEST' ? `/tmp/${appName}/db` : xdgData,
 	appName,
-	'db',
+	'levelDB',
 )
 export const db = new Level<unknown, unknown>(dbPath)
 
