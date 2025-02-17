@@ -1,9 +1,11 @@
 import { program } from '@commander-js/extra-typings'
 
+import { ShouldAnalyze } from './categories/Entry'
 import { sync } from './categories/Persistance'
 import { scanDirs } from './categories/scanDirs'
 import { scanFileSafe } from './categories/scanFile'
 import { Category } from './category'
+import { analyzeAll } from './commands/analyze'
 import { dedupe, dupes } from './commands/dupes'
 import { exportData, importData } from './commands/export'
 import {
@@ -31,8 +33,12 @@ program
 		await dedupe()
 	})
 
-program.command('dump').action(async () => {
-	await Category.dump()
+program.command('dump [category]').action(async (category) => {
+	await Category.dump(category)
+})
+
+program.command('reset-meta').action(async () => {
+	await ShouldAnalyze.reset()
 })
 
 program
@@ -42,6 +48,10 @@ program
 	.action(async ({ force, watch }) => {
 		await scanDirs(watch, force)
 	})
+
+program.command('analyze').action(async () => {
+	await analyzeAll()
+})
 
 program.command('sync').action(async () => {
 	await sync()

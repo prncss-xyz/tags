@@ -24,6 +24,7 @@ export type UpdateEvent<Key, Value> = {
 }
 
 export interface ICategory<Key, Value> {
+	entries: () => AsyncIterable<[Key, Value]>
 	get: (key: Key) => Promise<undefined | Value>
 	map: (key: Key, modify: (t: Value) => Value) => Promise<undefined | Value>
 	subscribe: (callback: (event: UpdateEvent<Key, Value>) => void) => void
@@ -60,7 +61,7 @@ export type CategoryKey<Category> = Category extends ICategory<infer K, any> ? K
 export type CategoryValue<Category> = Category extends ICategory<any, infer V> ? V : never
 
 const categoryBrand = Symbol('categoryBrand')
-type BrandedKey<Prefix extends string> = string & { readonly [categoryBrand]: Prefix }
+export type BrandedKey<Prefix extends string> = string & { readonly [categoryBrand]: Prefix }
 
 export function category<Prefix extends string>(prefix: Prefix) {
 	return function <Value, Key = BrandedKey<Prefix>>(opts?: Opts<Value, Key>) {
@@ -96,10 +97,44 @@ export function categoryWithCreate<Prefix extends string>(prefix: Prefix) {
 	}
 }
 
-export class Category<Value, Name extends string, Key> implements ICategory<Key, Value> {
+export class Base<Value, Name extends string, Key> {
+	//  the package does not provide types for sublevel
+	private sublevel: Level<Key, Value>
+	constructor(name: Name) {
+		this.sublevel = db.sublevel<Key, Value>(name, { valueEncoding: 'json' }) as any
+	}
+	clear() {
+		return this.sublevel.clear()
+	}
+	async del(key: Key) {
+		await this.sublevel.del(key)
+	}
+	entries() {
+		return this.sublevel.iterator()
+	}
+	async get(key: Key): Promise<undefined | Value> {
+		return await this.sublevel.get(key)
+	}
+	async has(key: Key) {
+		return Boolean(await this.sublevel.get(key))
+	}
+	keys() {
+		return this.sublevel.keys()
+	}
+	async put(key: Key, next: Value) {
+		await this.sublevel.put(key, next)
+	}
+	values() {
+		return this.sublevel.values()
+	}
+}
+
+export class Category<Value, Name extends string, Key>
+	extends Base<Value, Name, Key>
+	implements ICategory<Key, Value>
+{
 	index: boolean
 	shouldRemove: (value: Value, key: Key) => unknown
-	protected sublevel: Level<Key, Value>
 	protected subscriptions = new Set<(event: Event<Key, Value>) => void>()
 	private merger: (next: Value, last: Value) => Promise<Value>
 	private promises = new Map<Key, Promise<undefined | Value>>()
@@ -109,57 +144,27 @@ export class Category<Value, Name extends string, Key> implements ICategory<Key,
 		public readonly name: Name,
 		opts?: Opts<Value, Key>,
 	) {
+		super(name)
 		this.index = opts?.index ?? false
 		this.shouldRemove = opts?.shouldRemove ?? alwaysFalse
 		this.rewrite = opts?.rewrite ?? pro.unit
 		this.merger = opts?.merge ?? pro.unit
 		isoAssert(!categories.has(name), `category ${name} already exists`)
 		categories.set(name, this)
-		//  the package do not provide types for sublevel
-		this.sublevel = db.sublevel<Key, Value>(name, { valueEncoding: 'json' }) as any
 	}
-	static async dump() {
-		for (const [prefix, category] of categories.entries()) {
-			logger.log(prefix)
-			for await (const entry of category.sublevel.iterator()) logger.log(JSON.stringify(entry))
+	static async dump(prefix?: string) {
+		for (const [prefix_, category] of categories.entries()) {
+			if (prefix && prefix_ !== prefix) continue
+			logger.log(prefix_)
+			for await (const entry of category.entries()) logger.log(JSON.stringify(entry))
 		}
 	}
 	static async export(write: (prefix: string) => (key: unknown, value: unknown) => Promise<void>) {
 		for (const [prefix, category] of Object.entries(categories)) {
 			if (category.opts.index) continue
 			const w = write(prefix)
-			for await (const [key, value] of category.sublevel.iterator()) await w(key, value)
+			for await (const [key, value] of category.iterator()) await w(key, value)
 		}
-	}
-	entries(
-		opts?: Partial<{
-			gt: Key
-			gte: Key
-			limit: number
-			lt: Key
-			lte: Key
-			reverse: boolean
-		}>,
-	) {
-		return this.sublevel.iterator(opts ?? {})
-	}
-	async get(key: Key): Promise<undefined | Value> {
-		return await this.sublevel.get(key)
-	}
-	async has(key: Key) {
-		return Boolean(await this.sublevel.get(key))
-	}
-	keys(
-		opts?: Partial<{
-			gt: Key
-			gte: Key
-			limit: number
-			lt: Key
-			lte: Key
-			reverse: boolean
-		}>,
-	) {
-		return this.sublevel.keys(opts ?? {})
 	}
 	manyToMany<TKey, Fail, Command, IS_PRISM>(
 		prefix: string,
@@ -201,10 +206,10 @@ export class Category<Value, Name extends string, Key> implements ICategory<Key,
 					const last = await this.get(key)
 					let next = await q(last)
 					if (next !== last) {
-						if (next === undefined) await this.sublevel.del(key)
+						if (next === undefined) await this.del(key)
 						else {
 							next = await this.rewrite(next, last)
-							await this.sublevel.put(key, next)
+							await this.put(key, next)
 						}
 						this.subscriptions.forEach((cb) =>
 							cb({
@@ -251,18 +256,6 @@ export class Category<Value, Name extends string, Key> implements ICategory<Key,
 		this.subscriptions.add(cb)
 		return () => this.subscriptions.delete(cb)
 	}
-	values(
-		opts?: Partial<{
-			gt: Key
-			gte: Key
-			limit: number
-			lt: Key
-			lte: Key
-			reverse: boolean
-		}>,
-	) {
-		return this.sublevel.values(opts ?? {})
-	}
 }
 
 class CategoryWithDefault<Value, Prefix extends string, Key = BrandedKey<Prefix>> extends Category<
@@ -278,7 +271,7 @@ class CategoryWithDefault<Value, Prefix extends string, Key = BrandedKey<Prefix>
 		super(prefix, opts)
 	}
 	async get(key: Key): Promise<Value> {
-		return (await this.sublevel.get(key)) ?? this.defaultValue(key)
+		return (await super.get(key)) ?? this.defaultValue(key)
 	}
 	async map(key: Key, up: (last: Value) => Value): Promise<Value> {
 		return super.map(key, up) as Promise<Value>
@@ -304,10 +297,10 @@ class CategoryWithGenerate<Value, Prefix extends string, Key = BrandedKey<Prefix
 		super(prefix, opts)
 	}
 	async get(key: Key): Promise<Value> {
-		const last = await this.sublevel.get(key)
+		const last = await super.get(key)
 		if (last !== undefined) return last
 		const next = this.generate(key)
-		await this.sublevel.put(key, next)
+		await this.put(key, next)
 		return next
 	}
 	async map(key: Key, up: (last: Value) => Value): Promise<Value> {
@@ -341,7 +334,7 @@ class CategoryWithCreate<
 			last === undefined,
 			`key '${key}' already exists for category ${this.name} (init = ${init})`,
 		)
-		await this.sublevel.put(key, next)
+		await this.put(key, next)
 		this.subscriptions.forEach((cb) =>
 			cb({
 				key,
@@ -418,8 +411,18 @@ export class OneToOne<SValue, TValue, SKey, TKey, Fail, Command> extends Categor
 
 export class OneToIndex<SValue, SKey> extends Category<true, string, SKey> {
 	back: (t: SValue) => unknown
+	source: ICategory<SKey, SValue>
 	constructor(prefix: string, source: ICategory<SKey, SValue>, predicate: (v: SValue) => unknown) {
 		super(prefix, { index: true })
+		this.source = source
 		this.back = oneToIndex(source, predicate, this)
+	}
+	async reset() {
+		await this.clear()
+		for await (const [key, value] of this.source.entries()) {
+			if (this.back(value)) {
+				await this.put(key, true)
+			}
+		}
 	}
 }

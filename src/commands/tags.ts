@@ -15,17 +15,11 @@ import {
 	voidSink,
 } from '@prncss-xyz/utils'
 
-import { ResourceToEntries } from '../categories/Entry'
+import { ResourceToEntries, UntaggedResources } from '../categories/Entry'
 import { getPathPrism } from '../categories/Entry/pathPrism'
 import { walkDirOrFiles, walkList } from '../categories/Entry/walkDir'
 import { Lamport } from '../categories/Lamport'
-import {
-	fTags,
-	fTagsGet,
-	Resources,
-	TagsToResources,
-	UntaggedResources,
-} from '../categories/Resource'
+import { fTags, fTagsGet, Resources, TagsToResources } from '../categories/Resource'
 import { scanFile } from '../categories/scanFile'
 import { fName, NameToTags, Tags } from '../categories/Tag'
 import { getConfig } from '../config'

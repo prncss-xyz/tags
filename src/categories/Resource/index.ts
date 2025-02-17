@@ -1,7 +1,7 @@
 import { focus, pipe, prop } from '@constellar/core'
 
+import { Meta } from '../../analyse'
 import { CategoryKey, categoryWithDefault } from '../../category'
-import { Entries } from '../Entry'
 import {
 	initLamportObj,
 	LamportObject,
@@ -17,12 +17,15 @@ type TagRecord = Record<CategoryKey<typeof Tags>, boolean>
 
 // checksum is the key
 export type IResource = {
+	meta?: Meta
 	tags: LamportObject<TagRecord>
 }
 
 export const Resources = categoryWithDefault('Resources')<IResource>(() => ({
 	tags: initLamportObj({}),
 }))
+
+export const fMeta = focus<IResource>()(prop('meta'))
 
 export const fTags = (key: CategoryKey<typeof Resources>, lamport: TLamport) =>
 	focus<IResource>()(
@@ -39,13 +42,3 @@ export const fTags = (key: CategoryKey<typeof Resources>, lamport: TLamport) =>
 export const fTagsGet = fTags('' as any, toLamport(0))
 
 export const TagsToResources = Resources.manyToMany('TagsToResources', fTagsGet)
-export const UntaggedResources = Resources.oneToIndex(
-	'UntaggedResources',
-	(r) => fTagsGet.view(r).length === 0,
-)
-Entries.subscribe(({ last, next }) => {
-	const l = last?.resource
-	const n = next?.resource
-	if (n === undefined && l !== undefined) UntaggedResources.remove(l)
-	if (l === undefined && n !== undefined) UntaggedResources.put(n, true)
-})
