@@ -37,8 +37,12 @@ program.command('dump [category]').action(async (category) => {
 	await Category.dump(category)
 })
 
-program.command('reset-meta').action(async () => {
+program.command('reset-analyze').action(async () => {
 	await ShouldAnalyze.reset()
+})
+
+program.command('analyze').action(async () => {
+	await analyzeAll()
 })
 
 program
@@ -48,10 +52,6 @@ program
 	.action(async ({ force, watch }) => {
 		await scanDirs(watch, force)
 	})
-
-program.command('analyze').action(async () => {
-	await analyzeAll()
-})
 
 program.command('sync').action(async () => {
 	await sync()

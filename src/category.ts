@@ -209,7 +209,7 @@ export class Category<Value, Name extends string, Key>
 						if (next === undefined) await this.del(key)
 						else {
 							next = await this.rewrite(next, last)
-							await this.put(key, next)
+							await super.put(key, next)
 						}
 						this.subscriptions.forEach((cb) =>
 							cb({
